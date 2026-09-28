@@ -191,17 +191,52 @@ public sealed partial class McpServer
     /// Token bucket per caller (<see cref="McpServerOptions.RateLimitPerMinute"/> refill, <see cref="McpServerOptions.RateLimitBurst"/>
     /// capacity). Returns 0 when the call may run, otherwise the seconds until a token is available.
     /// </summary>
-    internal double RateLimitDelaySeconds(string? authenticatedClient, string? sessionId)
+    internal double RateLimitDelaySeconds(string? authenticatedClient, string? sessionId, string? clientName)
     {
         var perMinute = Options.RateLimitPerMinute;
         if (perMinute <= 0)
             return 0;
         var burst = Math.Max(1, Options.RateLimitBurst > 0 ? Options.RateLimitBurst : perMinute / 4);
         var key = authenticatedClient is not null ? "c:" + authenticatedClient : sessionId is not null ? "s:" + sessionId : "main";
+        var rawLabel = authenticatedClient ?? (string.IsNullOrWhiteSpace(clientName) ? (sessionId is null ? "main token" : "(unnamed client)") : clientName.Trim());
+        var label = Visible(rawLabel);
+        if (label.Length > 64)
+            label = label[..64] + "…";
         if (_rateBuckets.Count > 4096)
             _rateBuckets.Clear();
-        var bucket = _rateBuckets.GetOrAdd(key, static (_, b) => new RateBucket(b), burst);
-        return bucket.TryTake(Clock.GetTimestamp(), Clock.TimestampFrequency, perMinute / 60.0, burst);
+        var bucket = _rateBuckets.GetOrAdd(key, static (_, state) => new RateBucket(state.Burst, state.Label, state.Authenticated), (Burst: burst, Label: label, Authenticated: authenticatedClient is not null));
+        return bucket.TryTake(Clock.GetTimestamp(), Clock.TimestampFrequency, perMinute / 60.0, burst, label, authenticatedClient is not null);
+    }
+
+    /// <summary>
+    /// Current per-client meter snapshots. Reading never takes a bucket's dispatch lock; each bucket publishes one
+    /// immutable state after a call and this method only reads those references.
+    /// </summary>
+    public IReadOnlyList<ClientRateLimitStatus> GetClientRateLimits()
+    {
+        var perMinute = Options.RateLimitPerMinute;
+        if (perMinute <= 0)
+            return [];
+        var capacity = Math.Max(1, Options.RateLimitBurst > 0 ? Options.RateLimitBurst : perMinute / 4);
+        var now = Clock.GetTimestamp();
+        var frequency = Clock.TimestampFrequency;
+        return _rateBuckets.Values
+            .Select(b => b.Read(now, frequency, perMinute, capacity))
+            .Where(s => s is not null)
+            .Cast<ClientRateLimitStatus>()
+            .Where(s => s.CallsInWindow > 0 || s.BurstUsed > 0.01)
+            .GroupBy(s => s.Client, StringComparer.OrdinalIgnoreCase)
+            .Select(g => new ClientRateLimitStatus(
+                g.First().Client,
+                g.Any(s => s.Authenticated),
+                g.Sum(s => s.CallsInWindow),
+                perMinute,
+                g.Sum(s => s.BurstUsed),
+                g.Sum(s => s.BurstCapacity),
+                g.Min(s => s.WindowSecondsRemaining)))
+            .OrderByDescending(s => s.CallsInWindow)
+            .ThenBy(s => s.Client, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
     }
 
     private void RaiseGatedToolExecuted(GatedToolExecution execution)
@@ -219,27 +254,70 @@ public sealed partial class McpServer
         }
     }
 
-    private sealed class RateBucket(int burst)
+    private sealed record RateSnapshot(
+        string Label,
+        bool Authenticated,
+        double Tokens,
+        long Last,
+        long WindowStart,
+        int WindowCalls);
+
+    private sealed class RateBucket(int burst, string label, bool authenticated)
     {
         private readonly object _lock = new();
         private double _tokens = burst;
         private long _last = -1;
+        private long _windowStart = -1;
+        private int _windowCalls;
+        private RateSnapshot _snapshot = new(label, authenticated, burst, -1, -1, 0);
 
-        public double TryTake(long now, long frequency, double perSecond, int capacity)
+        public double TryTake(long now, long frequency, double perSecond, int capacity, string label, bool authenticated)
         {
             lock (_lock)
             {
+                if (_windowStart < 0 || (now - _windowStart) / (double)frequency >= 60)
+                {
+                    _windowStart = now;
+                    _windowCalls = 0;
+                }
+
+                _windowCalls++;
                 if (_last >= 0)
                     _tokens = Math.Min(capacity, _tokens + ((now - _last) / (double)frequency * perSecond));
                 _last = now;
+                double delay;
                 if (_tokens >= 1)
                 {
                     _tokens -= 1;
-                    return 0;
+                    delay = 0;
+                }
+                else
+                {
+                    delay = Math.Max(0.05, (1 - _tokens) / perSecond);
                 }
 
-                return Math.Max(0.05, (1 - _tokens) / perSecond);
+                Volatile.Write(ref _snapshot, new RateSnapshot(label, authenticated, _tokens, _last, _windowStart, _windowCalls));
+                return delay;
             }
+        }
+
+        public ClientRateLimitStatus? Read(long now, long frequency, int perMinute, int capacity)
+        {
+            var state = Volatile.Read(ref _snapshot);
+            if (state.Last < 0)
+                return null;
+            var sinceWindow = Math.Max(0, (now - state.WindowStart) / (double)frequency);
+            var calls = sinceWindow < 60 ? state.WindowCalls : 0;
+            var refill = Math.Max(0, (now - state.Last) / (double)frequency) * (perMinute / 60.0);
+            var tokens = Math.Min(capacity, state.Tokens + refill);
+            return new ClientRateLimitStatus(
+                state.Label,
+                state.Authenticated,
+                calls,
+                perMinute,
+                Math.Max(0, capacity - tokens),
+                capacity,
+                calls == 0 ? 0 : Math.Max(0, 60 - sinceWindow));
         }
     }
 }

@@ -564,6 +564,7 @@ public sealed class Configuration : IPluginConfiguration
         changed |= Clamp(confirmTimeoutSeconds, 5, 300, v => confirmTimeoutSeconds = v);
         changed |= Clamp(ApprovalSessionMinutes, 1, 60, v => ApprovalSessionMinutes = v);
         changed |= Clamp(ChatBufferSize, 50, 5000, v => ChatBufferSize = v);
+        changed |= Clamp(RateLimitPerMinute, 0, 100_000, v => RateLimitPerMinute = v);
         changed |= Clamp(AgentBoardExpiryMinutes, 0, 7 * 24 * 60, v => AgentBoardExpiryMinutes = v);
 
         if (!Enum.IsDefined(ActivityLogLevel))

@@ -53,7 +53,7 @@ until the plugin reloads.
 | `AllowAction` | `false` | Act in your client: target, gearsets, teleport, slash commands. |
 | `AllowChat` | `false` | Chat other players can see: say, party, tells, FC. |
 | `ConfirmActions` | `true` | **Ask me before anything changes** — the one approval switch, at the top of Settings. On: every state-changing tool (Action, Chat, and the Ui tools that ask, such as the map flag) waits for Allow / Deny or a ticket; sessions, grants and auto-approve rules are shortcuts under it. Off: they run at once, are still written to the action log (`actions.log`), and chat or gear changes still show a notification. Ships on; see [HARD-LINES.md](HARD-LINES.md). |
-| `RateLimitPerMinute` | `600` | Calls per minute allowed per client (per-client token, else session). `0` = unlimited. |
+| `RateLimitPerMinute` | `600` | Calls per minute allowed per client (per-client token, else session). `0` = unlimited. Editable live under Settings → Advanced; Status shows each caller's current 60-second window and burst use. |
 | `ConfirmTimeoutSeconds` | `20` (5–300) | Seconds before a pending confirmation is denied automatically (the client gets "not confirmed in game within N s"). |
 | `DisabledCategories` | `[]` | Provider categories that are switched off (e.g. `"chat"`). Their tools, resources and prompts are hidden and rejected. |
 | `ApprovalSessionMinutes` | `5` (1–60) | Length of an "Allow everything from this client" approval session started from the Approvals tab. Sessions themselves are never saved. See [APPROVALS.md](APPROVALS.md). |

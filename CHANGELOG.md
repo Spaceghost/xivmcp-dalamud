@@ -28,6 +28,7 @@ HUD family discovery and module snapshots have live smoke evidence. UI mutations
 
 * Nine HUD family tools and ffxiv://hud independently discover XivHud, Journal and Character, read cached UI/controller/host diagnostics, and queue explicit approved UI changes. Request results distinguish queued, applied and refused; actual host presentation remains a separate status read. Shared libraries are bundled and Character remains manual-only.
 * Passive companion bridge discovery now includes Piano, Lantern, Wayfinder and Rug/FloorMap diagnostics.
+* A per-client call meter on Status shows attempts in the current 60-second window against the player's rate limit, plus burst-bucket use, without taking the request path's lock. Named client tokens are identified as authenticated; same-named sessions share the displayed bar. Advanced now has the long-missing live rate-limit control (0 means unlimited), and get_server_info reports the same snapshots in both plugin and standalone hosts. Core tests cover allowed and rejected calls appearing in the meter; not tried in game.
 
 ## [0.1.1] — Released 2026-09-23
 

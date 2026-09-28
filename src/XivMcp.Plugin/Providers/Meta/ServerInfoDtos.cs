@@ -47,4 +47,7 @@ public sealed record ServerInfoDto(
 
     /// <summary>Calls per minute allowed per client; 0 means unlimited.</summary>
     public int RateLimitPerMinute { get; init; }
+
+    /// <summary>Current lock-free per-client call-meter snapshots.</summary>
+    public IReadOnlyList<XivMcp.Core.ClientRateLimitStatus> ClientBudgets { get; init; } = [];
 }

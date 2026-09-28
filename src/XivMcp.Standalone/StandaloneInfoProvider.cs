@@ -61,6 +61,7 @@ internal sealed class StandaloneInfoProvider(StandaloneFacts facts)
             CatalogueVersion = McpServer.CatalogueVersion,
             StaticTools = statics,
             RateLimitPerMinute = facts.Server.Options.RateLimitPerMinute,
+            ClientBudgets = facts.Server.GetClientRateLimits(),
         };
     }
 }

@@ -304,6 +304,14 @@ public sealed partial class MainWindow
         ImGui.EndDisabled();
         HelpMarker("5-600, default 30. Upper bound for one tool/resource/prompt call; for Action/Chat it starts after your approval. Applies immediately.");
 
+        var rateLimit = config.RateLimitPerMinute;
+        ImGui.SetNextItemWidth(160);
+        if (ImGui.InputInt("Calls per minute per client", ref rateLimit, 10, 100))
+            config.RateLimitPerMinute = Math.Clamp(rateLimit, 0, 100_000);
+        if (ImGui.IsItemDeactivatedAfterEdit())
+            SaveConfig();
+        HelpMarker("0-100000, default 600. Shared by tools, resource reads and prompts for each client token (otherwise each session). 0 = unlimited. Applies immediately.");
+
         var chatBuffer = config.ChatBufferSize;
         ImGui.SetNextItemWidth(160);
         if (ImGui.InputInt("Chat buffer lines", ref chatBuffer, 50, 500))

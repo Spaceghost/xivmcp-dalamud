@@ -49,7 +49,6 @@ goes through `Providers/Dalamud/DalamudInternals.cs` and nowhere else:
 | Group | State | Next concrete step |
 | --- | --- | --- |
 | Sibling-mod IPC additions | designed, and patches written for each sibling repo (not applied, not built, not run): see the owner's `xivmcp-sibling-ipc-2026-09-20` working directory. **Ghostty** `GhosttyDalamud.v1.Call`: `api.version`, `theme.list` / `theme.set`, `capture.shot` / `capture.clip` / `capture.status`, `selftest.run` / `selftest.report`, `leakwatch.report`, `gallery.share`. `layout.get` / `layout.set` were **not** written: `/term pin` has no absolute-world-position form, so a saved anchor cannot be written back as arguments that reproduce it — that is a feature to design, not a gate to wire up. **XivDesktop**: `XivDesktop.v1.ApiVersion`, `.Panels`, `.Rescan`. **Almanac**: the `Almanac.v1.Call` gate with all twelve verbs, and deliberately no verb that submits results to a leaderboard. | Apply each patch in its own repo, build it there, then try the bridge tools against it. `get_terminal_layouts` and `apply_terminal_layout` stay `unavailable` until Ghostty grows a way to reproduce a placement. |
-| Settings: rate limit | master has the setting (`RateLimitPerMinute`), no UI control | Add an input under Advanced in `MainWindow.Settings.cs`. |
 | Minisite | nothing to change in data (it lists no tools) | The plugin description there says changes are "approved in game first"; with the checkbox that is "approved in game first unless you switch approval off". |
 
 ## Known flake

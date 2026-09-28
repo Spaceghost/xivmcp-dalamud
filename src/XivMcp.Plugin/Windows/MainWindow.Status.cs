@@ -64,6 +64,30 @@ public sealed partial class MainWindow
         if (!config.RequireToken)
             ImGui.TextColored(ImGuiColors.DalamudOrange, "Token check is off. Any program on this machine (and browsers, subject to Origin checks) can use the enabled tools.");
 
+        ImGui.Spacing();
+        ImGui.TextColored(ImGuiColors.DalamudViolet, "Client call meter");
+        var budgets = host.GetClientRateLimits();
+        if (config.RateLimitPerMinute <= 0)
+        {
+            ImGui.TextDisabled("Unlimited — the per-client meter is disabled.");
+        }
+        else if (budgets.Count == 0)
+        {
+            ImGui.TextDisabled($"No metered calls yet · limit {config.RateLimitPerMinute}/min per client.");
+        }
+        else
+        {
+            foreach (var budget in budgets)
+            {
+                ImGui.TextUnformatted(budget.Client);
+                ImGui.SameLine();
+                ImGui.TextDisabled(budget.Authenticated ? "client token" : "session/main token");
+                var fraction = Math.Clamp(budget.CallsInWindow / (float)Math.Max(1, budget.LimitPerMinute), 0f, 1f);
+                var label = $"{budget.CallsInWindow} / {budget.LimitPerMinute} calls · burst {budget.BurstUsed:0.#}/{budget.BurstCapacity}";
+                ImGui.ProgressBar(fraction, new Vector2(-1, 0), label);
+            }
+        }
+
         var failed = host.Providers.Where(p => !p.Loaded).ToArray();
         if (failed.Length > 0)
         {

@@ -28,6 +28,10 @@
         {
           "status": "beta",
           "text": "Passive companion bridge discovery now includes Piano, Lantern, Wayfinder and Rug/FloorMap diagnostics."
+        },
+        {
+          "status": "beta",
+          "text": "A per-client call meter on Status shows attempts in the current 60-second window against the player's rate limit, plus burst-bucket use, without taking the request path's lock. Named client tokens are identified as authenticated; same-named sessions share the displayed bar. Advanced now has the long-missing live rate-limit control (0 means unlimited), and get_server_info reports the same snapshots in both plugin and standalone hosts. Core tests cover allowed and rejected calls appearing in the meter; not tried in game."
         }
       ]
     },

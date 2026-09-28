@@ -11624,6 +11624,43 @@
           },
           "rateLimitPerMinute": {
             "type": "integer"
+          },
+          "clientBudgets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "client": {
+                  "type": "string"
+                },
+                "authenticated": {
+                  "type": "boolean"
+                },
+                "callsInWindow": {
+                  "type": "integer"
+                },
+                "limitPerMinute": {
+                  "type": "integer"
+                },
+                "burstUsed": {
+                  "type": "number"
+                },
+                "burstCapacity": {
+                  "type": "integer"
+                },
+                "windowSecondsRemaining": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "authenticated",
+                "callsInWindow",
+                "limitPerMinute",
+                "burstUsed",
+                "burstCapacity",
+                "windowSecondsRemaining"
+              ]
+            }
           }
         },
         "required": [

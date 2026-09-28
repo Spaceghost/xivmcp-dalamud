@@ -129,9 +129,24 @@ public class ExtensionTests
         var limited = await CallAsync(s, "ext_static");
         Assert.Equal(McpErrorCodes.RateLimited, ErrorCode(limited));
         Assert.True(limited["_meta"]!["dev.xivmcp/error"]!["retryAfterSeconds"]!.GetValue<double>() > 0);
+        var meter = Assert.Single(s.Server.GetClientRateLimits());
+        Assert.Equal(3, meter.CallsInWindow);
+        Assert.Equal(60, meter.LimitPerMinute);
+        Assert.Equal(2, meter.BurstCapacity);
 
         clock.Advance(TimeSpan.FromSeconds(1.1));
         Assert.Null((await CallAsync(s, "ext_static"))["isError"]);
+    }
+
+    [Fact]
+    public async Task RateMeterCleansAndCapsSelfReportedClientNames()
+    {
+        await using var s = await TestServer.StartAsync(o => o.RateLimitPerMinute = 60);
+        s.Server.RateLimitDelaySeconds(null, "session", "\u202Ehidden" + new string('x', 100));
+        var meter = Assert.Single(s.Server.GetClientRateLimits());
+        Assert.InRange(meter.Client.Length, 1, 65);
+        Assert.DoesNotContain('\u202E', meter.Client);
+        Assert.Contains("\\u202E", meter.Client);
     }
 
     [Fact]
