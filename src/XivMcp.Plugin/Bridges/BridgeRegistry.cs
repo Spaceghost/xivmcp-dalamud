@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using XivMcp.Plugin.Providers.DalamudInfo;
@@ -44,6 +45,23 @@ public sealed class BridgeRegistry
         this.log = log;
     }
 
+    private JsonElement ReadJsonCall(string gate, string method)
+    {
+        var raw = pluginInterface.GetIpcSubscriber<string, string>(gate).InvokeFunc("{\"method\":\"" + method + "\",\"params\":{}}");
+        if (raw.Length > 65536) throw new InvalidOperationException("IPC response is too large.");
+        using var doc = JsonDocument.Parse(raw, new JsonDocumentOptions { MaxDepth = 16 });
+        var root = doc.RootElement;
+        if (!root.TryGetProperty("ok", out var ok) || ok.ValueKind != JsonValueKind.True) throw new InvalidOperationException("IPC refused the read.");
+        return root.GetProperty("result").Clone();
+    }
+
+    private string ProbeJsonCall(string gate)
+    {
+        var result = ReadJsonCall(gate, "api.version");
+        if (result.GetProperty("version").GetInt32() != 1) throw new InvalidOperationException("Unsupported HUD IPC version.");
+        return "1";
+    }
+
     /// <summary>Status of every known bridge.</summary>
     public List<BridgeStatus> ProbeAll() => BridgeCatalog.All.Select(Probe).ToList();
 
@@ -73,6 +91,7 @@ public sealed class BridgeRegistry
         {
             var api = definition.ProbeKind switch
             {
+                BridgeProbeKind.JsonCall => ProbeJsonCall(definition.ProbeGate),
                 BridgeProbeKind.IntPair => Describe(pluginInterface.GetIpcSubscriber<(int Breaking, int Feature)>(definition.ProbeGate).InvokeFunc()),
                 BridgeProbeKind.Int => pluginInterface.GetIpcSubscriber<int>(definition.ProbeGate).InvokeFunc().ToString(CultureInfo.InvariantCulture),
                 _ => pluginInterface.GetIpcSubscriber<string>(definition.ProbeGate).InvokeFunc(),
@@ -102,6 +121,8 @@ public sealed class BridgeRegistry
         {
             switch (gate.Kind)
             {
+                case BridgeGateKind.JsonCallStatus:
+                    return ReadJsonCall(gate.Name, "status");
                 case BridgeGateKind.Bool:
                     return pluginInterface.GetIpcSubscriber<bool>(gate.Name).InvokeFunc();
                 case BridgeGateKind.Int:

@@ -23,6 +23,10 @@ shows server status and the agent board.
 > tests, but **the plugin has not yet been observed running in the game**. Nothing below about in-game behaviour
 > has been observed; treat it as the design, not as verified results.
 
+## HUD family
+
+Read `get_hud_family_status` or `ffxiv://hud` for independent HUD, Journal and Character discovery, capabilities, hosting and controller diagnostics. Six approved UI tools use bounded owner-thread requests; poll `get_hud_request` and inspect actual hosting before claiming success. [HUD integration and recovery](docs/HUD.md) explains optional dependencies and validation limits.
+
 ## How it fits together
 
 ```
@@ -303,7 +307,7 @@ do not edit the block by hand.
 
 <!-- BEGIN GENERATED CATALOG: dotnet run --project tools/catalog -- readme --write README.md -->
 
-156 tools (38 change something and go through the approval switch; 26 also work before the game starts), 19 resources and templates, 10 prompts.
+165 tools (44 change something and go through the approval switch; 26 also work before the game starts), 20 resources and templates, 10 prompts.
 Catalogue version 2; the machine-readable listing is [docs/tools.json](docs/tools.json) and the full reference (arguments, data sources, approval text) is [docs/TOOLS.md](docs/TOOLS.md).
 Tier and category are the in-game switches; *Login* means the call fails at the title screen; *Approval* means the call waits for you in game
 while *Ask me before anything changes* is ticked; *Pre-game* means the standalone host serves it while the game is closed.
@@ -338,6 +342,9 @@ Behaviour in game is unverified unless stated elsewhere.
 | `get_bridge_state` | Read | bridges | no | — | — | Reads one bridge's read-only IPC gates and returns each as {field, description, value, error}: for Penumbra the enabled state, mod list and collections; for Glamourer the saved design list; for Lifestream/AutoRetainer… |
 | `get_desktop_panels` | Read | bridges | no | — | — | What the player currently sees in XivDesktop: the launcher (open, search text, view, category, page, selected and visible app ids), favourites in order, whether the palette is open and the assistant's state (summoned,… |
 | `get_desktop_status` | Read | bridges | no | — | — | XivDesktop's health: ghostty (launching is possible), ghosttyStatus, apps (catalogue size), scanning, scannedAt, lastLaunch, lastError, summary, plus apiVersion (null until XivDesktop offers an ApiVersion gate). |
+| `get_hud_family_status` | Read | bridges | no | — | — | Read all XivHud modules independently: installed/loaded versions, versioned IPC capabilities, native HUD requested/applied visibility, Journal selection/search/bookmarks, Character page, data readiness, requested vers… |
+| `get_hud_module_status` | Read | bridges | no | — | — | Read one XivHud module's capabilities and immutable state snapshot, including window hosting, UI selection, controller focus and data errors. |
+| `get_hud_request` | Read | bridges | no | — | — | Poll a HUD module request by requestId. |
 | `get_terminal_capture_status` | Read | bridges | no | — | — | Whether GhosttyDalamud is recording, and its last screenshot or clip (kind, path, size, time, error). |
 | `get_terminal_layout` | Read | bridges | no | — | — | The current arrangement of GhosttyDalamud panels as a layout description: per panel its view, pet order and, where the snapshot allows, the pin argument that would put a panel there again (pin, for place_terminal_pane… |
 | `get_terminal_layouts` | Read | bridges | no | — | — | GhosttyDalamud's saved, named layouts (panels with kind, profile or run/match, view, exact pin arguments, order, size) and which is current; name narrows to one. |
@@ -357,9 +364,11 @@ Behaviour in game is unverified unless stated elsewhere.
 | `apply_terminal_layout` | Action | bridges | yes | yes | — | Applies a saved layout by name: existing panels move to their saved places and missing ones are opened (which may start the programs the layout names); nothing is closed. |
 | `ask_almanac` | Action | bridges | no | yes | — | Hands a question to Almanac: its chat window opens on the player's screen and its configured model (possibly a remote service) starts answering. |
 | `ask_npc_assistant` | Action | bridges | no | yes | — | What follows XivDesktop's /ask: a question (summons the speaker if needed and asks it), "" (only summon), "bye" (dismiss), or "as <preset\|npc:ID\|minion:ID\|mount:ID\|pet:ID\|self> [question]" to switch speaker first. |
+| `bookmark_hud_quest` | Action | bridges | yes | yes | — | Set or remove a local XivHud Journal bookmark for an accepted quest. |
 | `capture_terminal_clip` | Action | bridges | yes | yes | — | Asks GhosttyDalamud to record a short clip (1-30 seconds, gif or mp4) of the game frame, or of the focused panel only, optionally with the game's own UI hidden. |
 | `capture_terminal_screenshot` | Action | bridges | yes | yes | — | Asks GhosttyDalamud for a PNG of the frame the game just drew, including its world panels: target full (the whole frame) or panel (just the focused terminal's window); clean=true hides the game's own UI for that frame. |
 | `close_terminal_panel` | Action | bridges | yes | yes | — | Closes a panel as its close button does (panel.close): a terminal's shell and every program in it END, a remote window's stream stops, an adopted plugin window goes back to its plugin and the chat back to the game. |
+| `control_hud_window` | Action | bridges | no | yes | — | Explicit HUD UI operation: open, close, settings, original, or mode. hud supports settings/close only; Journal/Character support every operation. mode selects screen, native_frame (KamiToolKit), or world (optional Gho… |
 | `desktop_command` | Action | bridges | no | yes | — | Acts on the host desktop through XivDesktop. method launch starts an application (argument: the app id or a search text); method window sends a window action (argument: JSON such as {"action":"focus","id":12} — action… |
 | `desktop_window_action` | Action | bridges | no | yes | — | One action on a desktop window panel: focus, close (closes the window's stream and panel), pet (make it a pet), pin (pin it where the character stands), toggle (pet ↔ pin in place), place (needs pin, as /term pin take… |
 | `focus_terminal_panel` | Action | bridges | yes | yes | — | Gives a panel the keyboard and brings it forward (panel.focus): a hidden panel is shown, a dropdown tab opens the dropdown, a minimized terminal is restored. |
@@ -371,9 +380,13 @@ Behaviour in game is unverified unless stated elsewhere.
 | `rescan_desktop_apps` | Action | bridges | no | yes | — | Starts XivDesktop's background scan of installed applications so a newly installed one appears in list_desktop_apps; get_desktop_status shows scanning and scannedAt. |
 | `run_almanac_benchmark` | Action | bridges | no | yes | — | Starts Almanac's model benchmark: mode mock (no model is called; checks the harness) or live (the model answers every task, which takes minutes and, with a paid remote model, costs money). model overrides the configur… |
 | `run_terminal_selftest` | Action | bridges | yes | yes | — | Starts GhosttyDalamud's own in-game checks ("/term selftest SUITES"): suites is "all", "list" or suite names separated by spaces. |
+| `select_hud_quest` | Action | bridges | yes | yes | — | Open the illustrated Journal on an accepted quest, clearing its UI search/filter to reveal the selection. |
+| `set_hud_character_page` | Action | bridges | yes | yes | — | Open the illustrated Character record on Equipment, Attributes, ClassesAndJobs or GearSets. |
+| `set_hud_enabled` | Action | bridges | no | yes | — | Explicitly enable XivHud's reversible native HUD suppression or restore the game HUD. |
 | `set_terminal_panel_hidden` | Action | bridges | yes | yes | — | Hides or shows a world panel (window.hide): hidden panels are neither drawn nor streamed, lose the keyboard and sleep; hidden=false shows it again where its anchor puts it. |
 | `set_terminal_theme` | Action | bridges | no | yes | — | Switches the colours of the terminals and the glass around them to a named theme and saves it, as "/term theme NAME" does (names may contain spaces, e.g. "Gruvbox Light"). |
 | `share_terminal_capture` | Action | bridges | yes | yes | — | Uploads one screenshot or clip from GhosttyDalamud's capture folder to its online gallery and returns the link (result.url). path is a file path from get_terminal_capture_status, or "last" for the most recent capture. |
+| `show_hud_quest_on_map` | Action | bridges | yes | yes | — | Ask the Journal's existing native map handoff to show an accepted quest, closing the illustrated Journal. |
 | `switch_desktop_workspace` | Action | bridges | no | yes | — | Switches XivDesktop's current workspace (1-9): window panels assigned to other workspaces are hidden, this one's are shown. |
 | `get_attributes` | Read | character | yes | — | — | Every attribute the client tracks for the logged-in character, as {baseParamId, name, value} — including the crafter and gatherer stats an agent needs before planning a craft: craftsmanship, control, CP, gathering, pe… |
 | `get_character_sheet` | Read | character | yes | — | — | One condensed snapshot for 'summarise my character': identity (name, home world and data center, title, grand company and rank, free company tag), job (abbreviation, name, role, level, synced level, max HP/MP), attrib… |
@@ -478,6 +491,7 @@ Resources and templates follow the Read tier and their category.
 | --- | --- | --- | --- |
 | `ffxiv://tickets` | approvals | no | Your approval tickets (same shape as list_tickets with state all). |
 | `ffxiv://tickets/{id}` | approvals | no | One of your approval tickets (same shape as get_ticket). |
+| `ffxiv://hud` | bridges | yes | On-demand snapshot of the HUD host, Journal and Character, including optional hosting and recovery commands. |
 | `ffxiv://player` | character | yes | Same JSON as the get_player tool: the logged-in character's identity, job, level, HP/MP, position, statuses. |
 | `ffxiv://target` | character | yes | Same JSON as get_target (target, target of target, soft, focus, mouseover). |
 | `ffxiv://chat/recent` | chat | no | The newest 100 captured chat lines (oldest first) in the same shape as read_chat, excluding private tells and battle-log lines. |
