@@ -21,7 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\XivMcp.Core\XivMcp.Core.csproj" />
     <!-- Pinned to what Dalamud API 15 ships, so the linked sources see the same sheet definitions in both hosts. -->
-    <PackageReference Include="Lumina" Version="7.6.0" />
+    <PackageReference Include="Lumina" Version="7.7.1" />
     <PackageReference Include="Lumina.Excel" Version="7.5.0" />
     <InternalsVisibleTo Include="XivMcp.Standalone.Tests" />
   </ItemGroup>
