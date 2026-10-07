@@ -8,3 +8,6 @@
 fa7acf2af20c2f1260951080e735d9bab9cab39f:tests/XivMcp.Plugin.Tests/LogScrubberTests.cs:jwt:14
 # A made-up JWT in the log scrubber's test data (sub 1234), on the more/dalamud branch.
 91e0b9297c26a20ed22b558194a9c1abc2d4b3b6:tests/XivMcp.Plugin.Tests/LogScrubberTests.cs:jwt:14
+
+# The same synthetic JWT fixture on the released history (sub 1234; unsigned).
+964e839605f12d07e4945cf1c59a0fc76af0fa93:tests/XivMcp.Plugin.Tests/LogScrubberTests.cs:jwt:14

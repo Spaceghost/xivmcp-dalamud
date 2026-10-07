@@ -262,6 +262,76 @@
       }
     },
     {
+      "name": "bookmark_hud_quest",
+      "title": "Set a Journal bookmark",
+      "category": "bridges",
+      "permission": "action",
+      "availability": "live",
+      "requiresLogin": true,
+      "needsApproval": true,
+      "approvalSummary": "Set the local Journal bookmark for quest {questId} to {bookmarked}.",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "dataSources": [
+        "ipc:XivHud.Journal.v1.Call#journal.bookmark"
+      ],
+      "description": "Set or remove a local XivHud Journal bookmark for an accepted quest. Does not modify native quest tracking. Returns a requestId for get_hud_request.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "questId": {
+            "description": "Accepted Quest sheet row ID.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4294967295
+          },
+          "bookmarked": {
+            "description": "Explicit desired bookmark state.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "questId",
+          "bookmarked"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "description": "Any JSON value.",
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": true
+              },
+              {
+                "type": "array"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "result"
+        ]
+      }
+    },
+    {
       "name": "cancel_ticket",
       "title": "Cancel a pending approval ticket",
       "category": "approvals",
@@ -1026,6 +1096,109 @@
             "type": "string"
           }
         }
+      }
+    },
+    {
+      "name": "control_hud_window",
+      "title": "Control a HUD family window",
+      "category": "bridges",
+      "permission": "action",
+      "availability": "live",
+      "requiresLogin": false,
+      "needsApproval": true,
+      "approvalSummary": "Apply {action} to the {module} HUD window, with mode {mode} and placement {placement}.",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "dataSources": [
+        "ipc:XivHud.v1.Call",
+        "ipc:XivHud.Journal.v1.Call",
+        "ipc:XivHud.Character.v1.Call"
+      ],
+      "description": "Explicit HUD UI operation: open, close, settings, original, or mode. hud supports settings/close only; Journal/Character support every operation. mode selects screen, native_frame (KamiToolKit), or world (optional Ghostty) and opens the module. World placement is Hud, Companion, World or Ground. Screen recovers the ordinary UI when an optional host fails. original opens the game's own window and closes the replacement. No synthetic key or controller input, no automatic gear changes. Poll get_hud_request, then read actual hosting state.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "module": {
+            "description": "HUD module.",
+            "type": "string",
+            "enum": [
+              "hud",
+              "journal",
+              "character"
+            ]
+          },
+          "action": {
+            "description": "Explicit operation.",
+            "type": "string",
+            "enum": [
+              "open",
+              "close",
+              "settings",
+              "original",
+              "mode"
+            ]
+          },
+          "mode": {
+            "description": "Required only for action=mode.",
+            "type": "string",
+            "enum": [
+              "screen",
+              "native_frame",
+              "world"
+            ],
+            "default": ""
+          },
+          "placement": {
+            "description": "Optional only for world mode.",
+            "type": "string",
+            "enum": [
+              "Hud",
+              "Companion",
+              "World",
+              "Ground"
+            ],
+            "default": ""
+          }
+        },
+        "required": [
+          "module",
+          "action"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "description": "Any JSON value.",
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": true
+              },
+              {
+                "type": "array"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "result"
+        ]
       }
     },
     {
@@ -3091,7 +3264,14 @@
               "ghostty",
               "xivdesktop",
               "almanac",
-              "umbra"
+              "umbra",
+              "xivhud",
+              "xivhud_journal",
+              "xivhud_character",
+              "xivpiano",
+              "xivlantern",
+              "xivwayfinder",
+              "xivrug"
             ]
           },
           "limit": {
@@ -5779,6 +5959,356 @@
           "outside",
           "inWorkshop",
           "hasPermissions"
+        ]
+      }
+    },
+    {
+      "name": "get_hud_family_status",
+      "title": "Read the XivHud family",
+      "category": "bridges",
+      "permission": "read",
+      "availability": "live",
+      "requiresLogin": false,
+      "needsApproval": false,
+      "approvalSummary": null,
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "dataSources": [
+        "dalamud:InstalledPlugins",
+        "ipc:XivHud.v1.Call",
+        "ipc:XivHud.Journal.v1.Call",
+        "ipc:XivHud.Character.v1.Call"
+      ],
+      "description": "Read all XivHud modules independently: installed/loaded versions, versioned IPC capabilities, native HUD requested/applied visibility, Journal selection/search/bookmarks, Character page, data readiness, requested versus actual screen/native-frame/world hosting, focus and controller status. Missing or old modules return their own errors without hiding healthy modules. Windowing is a bundled shared library, not a separately installed plugin. Character and quest facts remain available through get_character_sheet/get_quest_journal. Reads neither open windows nor capture controller input; snapshots include observedAt.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "modules": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "plugin": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "purpose": {
+                      "type": "string"
+                    },
+                    "installed": {
+                      "type": "boolean"
+                    },
+                    "loaded": {
+                      "type": "boolean"
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "ipcAvailable": {
+                      "type": "boolean"
+                    },
+                    "apiVersion": {
+                      "type": "string"
+                    },
+                    "unavailable": {
+                      "type": "string"
+                    },
+                    "verified": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "installed",
+                    "loaded",
+                    "ipcAvailable",
+                    "verified"
+                  ]
+                },
+                "capabilities": {
+                  "description": "Any JSON value.",
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": true
+                    },
+                    {
+                      "type": "array"
+                    },
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "snapshot": {
+                  "description": "Any JSON value.",
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": true
+                    },
+                    {
+                      "type": "array"
+                    },
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "get_hud_module_status",
+      "title": "Read one HUD module",
+      "category": "bridges",
+      "permission": "read",
+      "availability": "live",
+      "requiresLogin": false,
+      "needsApproval": false,
+      "approvalSummary": null,
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "dataSources": [
+        "ipc:XivHud.v1.Call",
+        "ipc:XivHud.Journal.v1.Call",
+        "ipc:XivHud.Character.v1.Call"
+      ],
+      "description": "Read one XivHud module's capabilities and immutable state snapshot, including window hosting, UI selection, controller focus and data errors. Returns an error field for an absent, unloaded or incompatible module. Does not open its UI.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "module": {
+            "description": "HUD module.",
+            "type": "string",
+            "enum": [
+              "hud",
+              "journal",
+              "character"
+            ]
+          }
+        },
+        "required": [
+          "module"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "module": {
+            "type": "string"
+          },
+          "plugin": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "purpose": {
+                "type": "string"
+              },
+              "installed": {
+                "type": "boolean"
+              },
+              "loaded": {
+                "type": "boolean"
+              },
+              "version": {
+                "type": "string"
+              },
+              "ipcAvailable": {
+                "type": "boolean"
+              },
+              "apiVersion": {
+                "type": "string"
+              },
+              "unavailable": {
+                "type": "string"
+              },
+              "verified": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "installed",
+              "loaded",
+              "ipcAvailable",
+              "verified"
+            ]
+          },
+          "capabilities": {
+            "description": "Any JSON value.",
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": true
+              },
+              {
+                "type": "array"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "snapshot": {
+            "description": "Any JSON value.",
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": true
+              },
+              {
+                "type": "array"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "get_hud_request",
+      "title": "Read a HUD operation result",
+      "category": "bridges",
+      "permission": "read",
+      "availability": "live",
+      "requiresLogin": false,
+      "needsApproval": false,
+      "approvalSummary": null,
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "dataSources": [
+        "ipc:XivHud.v1.Call#request.status",
+        "ipc:XivHud.Journal.v1.Call#request.status",
+        "ipc:XivHud.Character.v1.Call#request.status"
+      ],
+      "description": "Poll a HUD module request by requestId. States: queued, applied, refused (with error). Keeps the latest 64 completed results until plugin reload; not found does not prove an operation failed. Check the module snapshot before retrying. Applied confirms module processing; actual host presentation is reported separately.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "module": {
+            "description": "Originating module.",
+            "type": "string",
+            "enum": [
+              "hud",
+              "journal",
+              "character"
+            ]
+          },
+          "requestId": {
+            "description": "requestId returned by a HUD change.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "module",
+          "requestId"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "description": "Any JSON value.",
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": true
+              },
+              {
+                "type": "array"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "result"
         ]
       }
     },
@@ -20497,6 +21027,71 @@
       }
     },
     {
+      "name": "select_hud_quest",
+      "title": "Select a quest in XivHud Journal",
+      "category": "bridges",
+      "permission": "action",
+      "availability": "live",
+      "requiresLogin": true,
+      "needsApproval": true,
+      "approvalSummary": "Open your illustrated Journal on quest {questId}.",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "dataSources": [
+        "ipc:XivHud.Journal.v1.Call#journal.select"
+      ],
+      "description": "Open the illustrated Journal on an accepted quest, clearing its UI search/filter to reveal the selection. Does not track the quest, change an objective or start Wayfinder. The Journal checks the quest is still accepted when applying the request. Use get_quest_journal for IDs; poll get_hud_request.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "questId": {
+            "description": "Accepted Quest sheet row ID.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4294967295
+          }
+        },
+        "required": [
+          "questId"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "description": "Any JSON value.",
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": true
+              },
+              {
+                "type": "array"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "result"
+        ]
+      }
+    },
+    {
       "name": "send_chat",
       "title": "Send chat message",
       "category": "chat",
@@ -20664,6 +21259,138 @@
             ]
           }
         }
+      }
+    },
+    {
+      "name": "set_hud_character_page",
+      "title": "Open a Character record page",
+      "category": "bridges",
+      "permission": "action",
+      "availability": "live",
+      "requiresLogin": true,
+      "needsApproval": true,
+      "approvalSummary": "Open your illustrated Character record on {page}.",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "dataSources": [
+        "ipc:XivHud.Character.v1.Call#character.page"
+      ],
+      "description": "Open the illustrated Character record on Equipment, Attributes, ClassesAndJobs or GearSets. This selects a UI page only; it never equips gear. Read get_character_sheet for game data. Poll get_hud_request then inspect module status.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "description": "Character record page.",
+            "type": "string",
+            "enum": [
+              "Equipment",
+              "Attributes",
+              "ClassesAndJobs",
+              "GearSets"
+            ]
+          }
+        },
+        "required": [
+          "page"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "description": "Any JSON value.",
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": true
+              },
+              {
+                "type": "array"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "result"
+        ]
+      }
+    },
+    {
+      "name": "set_hud_enabled",
+      "title": "Set native HUD visibility",
+      "category": "bridges",
+      "permission": "action",
+      "availability": "live",
+      "requiresLogin": false,
+      "needsApproval": true,
+      "approvalSummary": "Set XivHud native HUD suppression to {enabled}. False restores the game HUD.",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "dataSources": [
+        "ipc:XivHud.v1.Call#hud.set_enabled"
+      ],
+      "description": "Explicitly enable XivHud's reversible native HUD suppression or restore the game HUD. Preserves the saved native layout. Does not open Journal/Character or acquire controller input. Returns a queued requestId; poll get_hud_request and read get_hud_family_status to confirm applied visibility. Off is the recovery operation.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "description": "True hides native HUD categories; false restores them.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "description": "Any JSON value.",
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": true
+              },
+              {
+                "type": "array"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "result"
+        ]
       }
     },
     {
@@ -21153,6 +21880,71 @@
         },
         "required": [
           "completed"
+        ]
+      }
+    },
+    {
+      "name": "show_hud_quest_on_map",
+      "title": "Show a Journal quest on the game map",
+      "category": "bridges",
+      "permission": "action",
+      "availability": "live",
+      "requiresLogin": true,
+      "needsApproval": true,
+      "approvalSummary": "Show quest {questId} on your game map and close the illustrated Journal.",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "dataSources": [
+        "ipc:XivHud.Journal.v1.Call#journal.show_map"
+      ],
+      "description": "Ask the Journal's existing native map handoff to show an accepted quest, closing the illustrated Journal. No route or movement is started. Poll get_hud_request; applied means the handoff was invoked, not that a map marker was verified.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "questId": {
+            "description": "Accepted Quest sheet row ID.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4294967295
+          }
+        },
+        "required": [
+          "questId"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "description": "Any JSON value.",
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": true
+              },
+              {
+                "type": "array"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "result"
         ]
       }
     },
@@ -21904,6 +22696,14 @@
       "mimeType": "application/json",
       "requiresLogin": false,
       "description": "The newest buffered game events (same shape as get_events with no cursor). Subscribe to be told when something happens."
+    },
+    {
+      "uri": "ffxiv://hud",
+      "name": "XivHud family",
+      "category": "bridges",
+      "mimeType": "application/json",
+      "requiresLogin": true,
+      "description": "On-demand snapshot of the HUD host, Journal and Character, including optional hosting and recovery commands."
     },
     {
       "uri": "ffxiv://inventory",

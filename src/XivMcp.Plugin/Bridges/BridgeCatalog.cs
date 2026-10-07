@@ -28,6 +28,7 @@ public sealed record BridgeDefinition(
 /// <summary>Shape of a bridge's version gate.</summary>
 public enum BridgeProbeKind
 {
+    JsonCall,
     /// <summary>Func&lt;(int breaking, int feature)&gt;.</summary>
     IntPair,
 
@@ -48,6 +49,7 @@ public sealed record BridgeGate(string Name, string Field, string Description, B
 /// <summary>Return shapes XivMcp knows how to read from a bridge without knowing the plugin's types.</summary>
 public enum BridgeGateKind
 {
+    JsonCallStatus,
     /// <summary>Func&lt;bool&gt;.</summary>
     Bool,
 
@@ -176,6 +178,13 @@ public static class BridgeCatalog
             "Almanac.ApiVersion",
             BridgeProbeKind.Int,
             []),
+        new("xivhud", "XivHud", ["XivHud"], "Read HUD family UI state and capabilities; explicit changes use approved HUD tools.", "XivHud.v1.Call", BridgeProbeKind.JsonCall, [new("XivHud.v1.Call", "status", "Versioned HUD module snapshot.", BridgeGateKind.JsonCallStatus)]),
+        new("xivhud_journal", "XivHud Journal", ["XivHud.Journal"], "Read HUD family UI state and capabilities; explicit changes use approved HUD tools.", "XivHud.Journal.v1.Call", BridgeProbeKind.JsonCall, [new("XivHud.Journal.v1.Call", "status", "Versioned HUD module snapshot.", BridgeGateKind.JsonCallStatus)]),
+        new("xivhud_character", "XivHud Character", ["XivHud.Character"], "Read HUD family UI state and capabilities; explicit changes use approved HUD tools.", "XivHud.Character.v1.Call", BridgeProbeKind.JsonCall, [new("XivHud.Character.v1.Call", "status", "Versioned HUD module snapshot.", BridgeGateKind.JsonCallStatus)]),
+        new("xivpiano", "XivPiano", ["XivPiano"], "Read now-playing music; playback controls are separate.", "XivPiano.NowPlaying", BridgeProbeKind.String, [new("XivPiano.NowPlaying", "nowPlaying", "Music playback snapshot without account data.", BridgeGateKind.String)]),
+        new("xivlantern", "XivLantern", ["XivLantern"], "Read Lantern presence status without friend or message access.", "XivLantern.v1.GetStatus", BridgeProbeKind.String, [new("XivLantern.v1.GetStatus", "status", "Lantern enabled, online and unread status.", BridgeGateKind.String)]),
+        new("xivwayfinder", "XivWayfinder", ["XivWayfinder"], "Read guide state; journey changes use approved Wayfinder tools.", "XivWayfinder.v1.GetState", BridgeProbeKind.String, [new("XivWayfinder.v1.GetState", "status", "Guide state and teleport policy.", BridgeGateKind.String)]),
+        new("xivrug", "XivRug", ["XivRug", "XivFloorMap"], "Read the independent rug renderer's health and diagnostics.", "XivRug.v1.ApiVersion", BridgeProbeKind.Int, [new("XivRug.v1.GetStatus", "status", "Rug renderer readiness and terrain diagnostics.", BridgeGateKind.String)]),
         new(
             "umbra",
             "Umbra",
