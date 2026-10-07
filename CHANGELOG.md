@@ -13,6 +13,13 @@ Statuses mean exactly what they mean in the What's new view in game:
 * **BETA** — merged, but not yet verified in game.
 * **SOON** — still being built.
 
+## [Unreleased] — In development
+
+Offline validated; HUD IPC and UI operations await live acceptance.
+
+* Nine HUD family tools and ffxiv://hud independently discover XivHud, Journal and Character, read cached UI/controller/host diagnostics, and queue explicit approved UI changes. Request results distinguish queued, applied and refused; actual host presentation remains a separate status read. Shared libraries are bundled and Character remains manual-only.
+* Passive companion bridge discovery now includes Piano, Lantern, Wayfinder and Rug/FloorMap diagnostics.
+
 ## [0.1.1] — Released 2026-09-23
 
 BETA entries are in this release but have not been verified in game yet; they become NEW or FIX once they have been seen working.

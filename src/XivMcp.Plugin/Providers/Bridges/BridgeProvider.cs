@@ -55,7 +55,7 @@ public sealed class BridgeProvider
             "of failing the call. Fails only when the bridge itself is unavailable — check list_bridges first. " +
             "Lists (mods, designs) can be long; use limit to cap them.")]
     public BridgeStateDto GetBridgeState(
-        [McpParam("Bridge key from list_bridges.", Enum = ["penumbra", "glamourer", "mare", "lifestream", "autoretainer", "artisan", "deliveroo", "ghostty", "xivdesktop", "almanac", "umbra"])]
+        [McpParam("Bridge key from list_bridges.", Enum = ["penumbra", "glamourer", "mare", "lifestream", "autoretainer", "artisan", "deliveroo", "ghostty", "xivdesktop", "almanac", "umbra", "xivhud", "xivhud_journal", "xivhud_character", "xivpiano", "xivlantern", "xivwayfinder", "xivrug"])]
         string bridge,
         [McpParam("Maximum entries kept from any list-shaped value (1-500).", Minimum = 1, Maximum = 500)] int limit = 100)
     {
