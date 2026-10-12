@@ -762,7 +762,6 @@ public sealed partial class McpServer
             return true;
 
         var writer = new SseWriter(connection, request.IsHttp11, SseKeepAlive);
-        writer.Start(SseWriter.BuildHead(request, headers, connection.Limits.KeepAliveHintSeconds));
 
         SseLogicalStream stream;
         var lastEventId = request.Headers.Get("Last-Event-ID");
@@ -780,6 +779,9 @@ public sealed partial class McpServer
         }
 
         session.StreamOpened();
+        // A client can reconnect as soon as it receives these headers. Attach
+        // first so a delayed earlier request cannot replace the newer stream.
+        writer.Start(SseWriter.BuildHead(request, headers, connection.Limits.KeepAliveHintSeconds));
         RecordActivity(session.Id, ClientLabel(session.ClientName, session.ClientVersion), "GET (sse)", lastEventId is null ? stream.StreamId : "resume " + lastEventId, true, null, 0);
         using var registration = session.Lifetime.Token.Register(static s => ((SseWriter)s!).Complete(), writer);
         try

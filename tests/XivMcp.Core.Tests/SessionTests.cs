@@ -105,6 +105,48 @@ public class SessionTests
     }
 
     [Fact]
+    public async Task EveryReconnectIsReadyWhenItsHeadersArrive()
+    {
+        await using var s = await TestServer.StartAsync();
+        var sessionId = await s.InitializeAsync("2025-06-18");
+        HttpResponseMessage? previous = null;
+        SseReader? previousReader = null;
+        try
+        {
+            for (var i = 0; i < 30; i++)
+            {
+                using var get = new HttpRequestMessage(HttpMethod.Get, s.Endpoint);
+                get.Headers.Add("Mcp-Session-Id", sessionId);
+                get.Headers.Add("Accept", "text/event-stream");
+                var current = await s.Http.SendAsync(get, HttpCompletionOption.ResponseHeadersRead, TestContext.Current.CancellationToken);
+                var reader = new SseReader(await current.Content.ReadAsStreamAsync(TestContext.Current.CancellationToken));
+                try
+                {
+                    s.Server.Notifier.ToolListChanged();
+                    Assert.Equal("notifications/tools/list_changed", (await reader.NextMessageAsync())!["method"]!.GetValue<string>());
+                    if (previousReader is not null)
+                        Assert.Null(await previousReader.NextAsync());
+                }
+                catch
+                {
+                    reader.Dispose();
+                    current.Dispose();
+                    throw;
+                }
+                previousReader?.Dispose();
+                previous?.Dispose();
+                previous = current;
+                previousReader = reader;
+            }
+        }
+        finally
+        {
+            previousReader?.Dispose();
+            previous?.Dispose();
+        }
+    }
+
+    [Fact]
     public async Task KeepAliveCommentsOnIdleStreams()
     {
         await using var s = await TestServer.StartAsync(o => o.SseKeepAliveInterval = TimeSpan.FromMilliseconds(150));
