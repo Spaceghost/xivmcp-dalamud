@@ -1,7 +1,7 @@
 # TODO: what is still open
 
-> Rewritten 2026-09-20, after the four parked branches were landed on `master`. Nothing anywhere in this
-> file has been verified inside the running game. "Tested" means host-side tests only.
+> Updated 2026-10-11. Selected live checks are listed below; everything else marked
+> "tested" means host-side tests only. Live discovery does not certify every action or UI path.
 > The rules for all of it are in [HARD-LINES.md](HARD-LINES.md) and [PROVIDERS.md](PROVIDERS.md).
 
 Adding a tool: build the plugin with warnings as errors, run the tests (`ToolContractTests` is the gate
@@ -14,6 +14,7 @@ check), regenerate the catalogue with `dotnet run --project tools/catalog -c Rel
 
 | Feature | State |
 | --- | --- |
+| HUD family bridge: nine tools and `ffxiv://hud` | The running 0.1.2.1 MCP server registered 165 tools. With HUD, Journal and Character updated to 0.1.0.1, all three versioned gates answered, family discovery worked, and all three module-status tools returned capabilities and snapshots. UI mutations and visual/controller acceptance remain unverified. The resource's mistaken login requirement was found at the title screen and fixed with an HTTP regression covering logged-out reads and disabled Read permission; that fix still needs its own live check. |
 | The single approval checkbox (*Ask me before anything changes*), one gate for every mutating tool, approval sentences, action log, toasts when approval is off | tested; not seen in game |
 | Core: error codes, per-client rate limit, data sources / availability / approval metadata, external tools, control routes, catalogue export | tested |
 | Standalone pre-game host `xiv-mcp-standalone`, hand-off by yielding the port | tested between native processes only. **Next:** run it once against a real game install (Lumina.Excel from NuGet is 7.5.0, Dalamud ships 7.5.1), and try the hand-off with the real plugin under Wine — does a bind from inside Wine fail against the native listener? |

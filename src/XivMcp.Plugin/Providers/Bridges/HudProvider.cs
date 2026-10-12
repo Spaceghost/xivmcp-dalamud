@@ -25,7 +25,7 @@ public sealed class HudProvider
         Description = "Read one XivHud module's capabilities and immutable state snapshot, including window hosting, UI selection, controller focus and data errors. Returns an error field for an absent, unloaded or incompatible module. Does not open its UI.")]
     public HudModuleResult Module([McpParam("HUD module.", Enum = ["hud", "journal", "character"])] string module) => bridge.ReadModule(module);
 
-    [McpResource("ffxiv://hud", Name = "XivHud family", Description = "On-demand snapshot of the HUD host, Journal and Character, including optional hosting and recovery commands.")]
+    [McpResource("ffxiv://hud", RequiresLogin = false, Name = "XivHud family", Description = "On-demand snapshot of the HUD host, Journal and Character, including optional hosting and recovery commands.")]
     public FamilyResult Resource() => Family();
 
     [McpTool("set_hud_enabled", Permission = ToolPermission.Action, RequiresApproval = true, RequiresLogin = false,

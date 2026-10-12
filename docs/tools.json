@@ -22702,7 +22702,7 @@
       "name": "XivHud family",
       "category": "bridges",
       "mimeType": "application/json",
-      "requiresLogin": true,
+      "requiresLogin": false,
       "description": "On-demand snapshot of the HUD host, Journal and Character, including optional hosting and recovery commands."
     },
     {
