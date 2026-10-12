@@ -17,6 +17,7 @@ HUD family discovery and module snapshots have live smoke evidence. UI mutations
 
 ### Merged, not yet verified in game
 
+* Legacy SSE reconnects attach to their session before response headers become visible, preventing an older delayed connection from replacing the newest one. The release check exposed the ordering race; repeated real HTTP reconnects now verify prompt replacement and immediate notification delivery.
 * The ffxiv://hud resource now works before character login, matching the HUD status tools; Read permission and category restrictions still apply. Found at the title screen and covered by real HTTP regression tests; live resource acceptance awaits this build.
 
 ### Added
