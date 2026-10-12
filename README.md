@@ -491,7 +491,7 @@ Resources and templates follow the Read tier and their category.
 | --- | --- | --- | --- |
 | `ffxiv://tickets` | approvals | no | Your approval tickets (same shape as list_tickets with state all). |
 | `ffxiv://tickets/{id}` | approvals | no | One of your approval tickets (same shape as get_ticket). |
-| `ffxiv://hud` | bridges | yes | On-demand snapshot of the HUD host, Journal and Character, including optional hosting and recovery commands. |
+| `ffxiv://hud` | bridges | no | On-demand snapshot of the HUD host, Journal and Character, including optional hosting and recovery commands. |
 | `ffxiv://player` | character | yes | Same JSON as the get_player tool: the logged-in character's identity, job, level, HP/MP, position, statuses. |
 | `ffxiv://target` | character | yes | Same JSON as get_target (target, target of target, soft, focus, mouseover). |
 | `ffxiv://chat/recent` | chat | no | The newest 100 captured chat lines (oldest first) in the same shape as read_chat, excluding private tells and battle-log lines. |

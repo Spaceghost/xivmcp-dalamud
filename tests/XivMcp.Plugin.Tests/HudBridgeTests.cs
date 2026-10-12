@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Text;
+using System.Net.Http.Headers;
 using XivMcp.Core;
 using XivMcp.Plugin.Bridges;
 using XivMcp.Plugin.Providers.Bridges;
@@ -89,5 +91,61 @@ public class HudBridgeTests
         var changes = typeof(HudProvider).GetMethods().Select(m => m.GetCustomAttributes(typeof(McpToolAttribute), false).Cast<McpToolAttribute>().SingleOrDefault()).Where(a => a is not null && !a.Name.StartsWith("get_", StringComparison.Ordinal));
         Assert.Equal(6, changes.Count());
         Assert.All(changes, a => { Assert.Equal(ToolPermission.Action, a!.Permission); Assert.True(a.RequiresApproval); });
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task HudResourceWorksBeforeLoginButStillRequiresReadPermission(bool allowRead)
+    {
+        var fake = Fake("journal");
+        await using var server = new McpServer(new McpServerOptions { Port = 0 }, new InlineThread(), new LoggedOutHost(allowRead));
+        server.RegisterProvider(new HudProvider(new HudBridge(fake)));
+        await server.StartAsync();
+        using var client = new HttpClient();
+        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
+        client.DefaultRequestHeaders.Add("MCP-Protocol-Version", "2026-07-28");
+        client.DefaultRequestHeaders.Add("Mcp-Method", "resources/read");
+        client.DefaultRequestHeaders.Add("Mcp-Name", "ffxiv://hud");
+        using var body = new StringContent("""
+            {"jsonrpc":"2.0","id":1,"method":"resources/read","params":{"uri":"ffxiv://hud","_meta":{
+            "io.modelcontextprotocol/protocolVersion":"2026-07-28",
+            "io.modelcontextprotocol/clientInfo":{"name":"hud-resource-test","version":"1"},
+            "io.modelcontextprotocol/clientCapabilities":{}}}}
+            """, Encoding.UTF8, "application/json");
+        using var response = await client.PostAsync(new Uri($"http://127.0.0.1:{server.ListeningPort}/mcp"), body, TestContext.Current.CancellationToken);
+        response.EnsureSuccessStatusCode();
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        if (!allowRead)
+        {
+            Assert.Contains("'Read' permission tier", json.RootElement.GetProperty("error").GetProperty("message").GetString());
+            Assert.Empty(fake.Calls);
+            return;
+        }
+        Assert.False(json.RootElement.TryGetProperty("error", out _));
+        var text = json.RootElement.GetProperty("result").GetProperty("contents")[0].GetProperty("text").GetString()!;
+        using var family = JsonDocument.Parse(text);
+        Assert.Equal(3, family.RootElement.GetProperty("modules").GetArrayLength());
+        Assert.NotEmpty(fake.Calls);
+        Assert.All(fake.Calls, c => Assert.Contains(JsonDocument.Parse(c.Argument!).RootElement.GetProperty("method").GetString(), ReadMethods));
+    }
+
+    private sealed class LoggedOutHost(bool allowRead) : IHostState
+    {
+        public bool IsLoggedIn => false;
+        public bool IsPermitted(ToolPermission permission) => permission == ToolPermission.Read && allowRead;
+        public bool IsCategoryEnabled(string category) => true;
+    }
+
+    private sealed class InlineThread : IGameThread
+    {
+        public bool IsOnGameThread => true;
+        public Task<T> InvokeAsync<T>(Func<T> func, CancellationToken cancellationToken = default) => Task.FromResult(func());
+        public Task InvokeAsync(Action action, CancellationToken cancellationToken = default)
+        {
+            action();
+            return Task.CompletedTask;
+        }
     }
 }

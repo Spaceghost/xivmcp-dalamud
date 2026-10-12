@@ -1,14 +1,22 @@
 {
   "_comment": "The changelog. tools/changelog.py renders CHANGELOG.md from this file, and the plugin shows the same entries in game in the What's new tab (the file is embedded in XivMcp.Core). Every user-visible change edits this file in the same commit. Statuses: new/fix (in a release, seen working in game), beta (merged, not yet verified in game), next (still being built, not merged).",
   "project": "XivMcp",
-  "intro": "Every change to XivMcp a user can see, newest first.\n\nXivMcp's releases are built and tested without the game, and the plugin has not yet been observed running in the game: nothing below about in-game behaviour has been seen working. Treat it as the design, not as a result \u2014 the README says the same thing.",
+  "intro": "Every change to XivMcp a user can see, newest first. Selected plugin-control and read-only HUD bridge calls have been observed in game. Host tests cover more of the catalogue; neither those tests nor these live smoke checks certify every tool, approval interaction or UI path.",
   "releases": [
     {
       "version": "next",
       "title": "In development",
-      "date": "2026-10-07",
-      "blurb": "Offline validated; HUD IPC and UI operations await live acceptance.",
+      "date": "2026-10-11",
+      "blurb": "HUD family discovery and module snapshots have live smoke evidence. UI mutations remain unverified; the resource login fix is host-tested.",
       "items": [
+        {
+          "status": "beta",
+          "text": "The ffxiv://hud resource now works before character login, matching the HUD status tools; Read permission and category restrictions still apply. Found at the title screen and covered by real HTTP regression tests; live resource acceptance awaits this build."
+        },
+        {
+          "status": "new",
+          "text": "Live smoke check: the 0.1.2.1 server registered 165 tools and read capabilities/status from HUD, Journal and Character 0.1.0.1 through their versioned gates. This verifies discovery and snapshots, not every UI operation or hosting mode."
+        },
         {
           "status": "beta",
           "text": "Nine HUD family tools and ffxiv://hud independently discover XivHud, Journal and Character, read cached UI/controller/host diagnostics, and queue explicit approved UI changes. Request results distinguish queued, applied and refused; actual host presentation remains a separate status read. Shared libraries are bundled and Character remains manual-only."
