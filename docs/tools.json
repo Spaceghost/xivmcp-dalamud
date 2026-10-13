@@ -66,6 +66,48 @@
       }
     },
     {
+      "name": "append_wayfinder_stops",
+      "title": "Append destinations to the shared itinerary",
+      "category": "world",
+      "permission": "action",
+      "availability": "live",
+      "requiresLogin": true,
+      "needsApproval": true,
+      "approvalSummary": "Append these travel stops to your Wayfinder itinerary: {stopsJson}",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "dataSources": [
+        "ipc:XivWayfinder.v1.AppendJourney"
+      ],
+      "description": "Appends a batch of world-coordinate destinations to the player's existing Wayfinder itinerary. Does not replace stops, start guidance, move, or teleport. Supply JSON {version:1,stops:[{territoryId,x,z,y?,label?}]}; territoryId must be explicit/nonzero, coordinates within ±5000, optional y is world height. Maximum 64 total stops, 32768 JSON characters. All stops are validated before any are appended. Use get_wayfinder_journey first to avoid duplicates; this operation is not idempotent.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "stopsJson": {
+            "description": "Versioned JSON batch of world-coordinate stops.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "stopsJson"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "accepted"
+        ]
+      }
+    },
+    {
       "name": "apply_terminal_layout",
       "title": "Apply a saved terminal layout",
       "category": "bridges",
@@ -1198,6 +1240,54 @@
         },
         "required": [
           "result"
+        ]
+      }
+    },
+    {
+      "name": "control_wayfinder_journey",
+      "title": "Control itinerary guidance",
+      "category": "world",
+      "permission": "action",
+      "availability": "live",
+      "requiresLogin": true,
+      "needsApproval": true,
+      "approvalSummary": "Apply {action} to your Wayfinder itinerary. If you enabled automatic teleporting, the new guidance may teleport you and spend gil.",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "dataSources": [
+        "ipc:XivWayfinder.v1.ControlJourney"
+      ],
+      "description": "Pause/resume guidance, explicitly advance to the next stop, or return to the previous stop. Never walks the character. If the player enabled Wayfinder automatic teleporting, changing or resuming guidance can start Teleport and spend gil under that policy; inspect get_wayfinder_journey first. Only use next after the player confirms completion or asks to skip; arriving near a marker is not proof of task completion. Previous restores a stop without resuming paused guidance. Current guide state refreshes on the next game update.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "description": "Explicit itinerary action.",
+            "type": "string",
+            "enum": [
+              "resume",
+              "pause",
+              "next",
+              "previous"
+            ]
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "accepted"
         ]
       }
     },
@@ -14639,6 +14729,87 @@
       }
     },
     {
+      "name": "get_wayfinder_journey",
+      "title": "Read the shared travel itinerary",
+      "category": "world",
+      "permission": "read",
+      "availability": "live",
+      "requiresLogin": false,
+      "needsApproval": false,
+      "approvalSummary": null,
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "dataSources": [
+        "ipc:XivWayfinder.v1.GetJourney",
+        "ipc:XivWayfinder.v1.GetState"
+      ],
+      "description": "Reads XivWayfinder's saved stops, zero-based progress index and running state. Also returns its current walking/teleport instructions and automatic-teleport policy when supported. Check that policy before changing guidance: opted-in auto-Teleport may spend gil. Stops before index have been advanced past, not necessarily completed. Requires a compatible loaded XivWayfinder; no assembly dependency.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "journey": {
+            "description": "Any JSON value.",
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": true
+              },
+              {
+                "type": "array"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "guidance": {
+            "description": "Any JSON value.",
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": true
+              },
+              {
+                "type": "array"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "journey",
+          "guidance"
+        ]
+      }
+    },
+    {
       "name": "get_weather_forecast",
       "title": "Get weather forecast",
       "category": "world",
@@ -15556,7 +15727,7 @@
       "dataSources": [
         "ipc:XivDesktop.v1.Launch"
       ],
-      "description": "Starts an application on the player's computer through XivDesktop and shows its window as a panel in game. app is a desktop-file id from list_desktop_apps (\"org.gnome.TextEditor\", with or without \".desktop\") or search text, in which case XivDesktop launches its BEST MATCH, so prefer an exact id. Only catalogued applications can be started, never an arbitrary command line. Success means the launch was handed over, not that a window appeared; check list_desktop_windows. Fails with XivDesktop's own reason (no match, GhosttyDalamud missing).",
+      "description": "Starts an application on the player's computer through XivDesktop and shows its window as a panel in game. app is a desktop-file id from list_desktop_apps (\"org.gnome.TextEditor\", with or without \".desktop\") or search text, in which case XivDesktop launches its BEST MATCH, so prefer an exact id. Only catalogued applications can be started, never an arbitrary command line. Success means the launch was handed over, not that a window appeared. Waits up to 2 seconds for a unique new live panel matching the resolved app; observed and panelId report the observation. Check list_desktop_windows when observed=false. Fails with XivDesktop's own reason (no match, GhosttyDalamud missing).",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -15573,21 +15744,38 @@
       "outputSchema": {
         "type": "object",
         "properties": {
-          "gate": {
-            "type": "string"
+          "launch": {
+            "type": "object",
+            "properties": {
+              "gate": {
+                "type": "string"
+              },
+              "ok": {
+                "type": "boolean"
+              },
+              "message": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "ok"
+            ]
           },
-          "ok": {
+          "observed": {
             "type": "boolean"
           },
-          "message": {
-            "type": "string"
+          "panelId": {
+            "type": "integer"
           },
           "note": {
             "type": "string"
           }
         },
         "required": [
-          "ok"
+          "observed"
         ]
       }
     },
