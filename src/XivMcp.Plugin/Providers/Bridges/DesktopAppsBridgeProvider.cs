@@ -15,8 +15,12 @@ public sealed class DesktopAppsBridgeProvider
 {
     private readonly DesktopBridge bridge;
 
-    public DesktopAppsBridgeProvider(IDalamudPluginInterface pluginInterface, IPluginLog log) =>
+    private readonly IGameThread game;
+    public DesktopAppsBridgeProvider(IDalamudPluginInterface pluginInterface, IPluginLog log, IGameThread gameThread)
+    {
+        game = gameThread;
         bridge = new DesktopBridge(new DalamudBridgeInvoker(pluginInterface, log));
+    }
 
     [McpTool("list_desktop_apps",
         Sources = ["ipc:" + DesktopBridge.ListAppsGate],
@@ -67,6 +71,7 @@ public sealed class DesktopAppsBridgeProvider
     public BridgeDataDto GetDesktopStatus() => bridge.GetStatus();
 
     [McpTool("launch_desktop_app",
+        GameThread = false,
         Sources = ["ipc:" + DesktopBridge.LaunchGate],
         Title = "Launch a desktop application",
         Permission = ToolPermission.Action,
@@ -77,10 +82,10 @@ public sealed class DesktopAppsBridgeProvider
             "Starts an application on the player's computer through XivDesktop and shows its window as a panel in game. app is a desktop-file id from " +
             "list_desktop_apps (\"org.gnome.TextEditor\", with or without \".desktop\") or search text, in which case XivDesktop launches its BEST MATCH, so " +
             "prefer an exact id. Only catalogued applications can be started, never an arbitrary command line. Success means the launch was handed over, not " +
-            "that a window appeared; check list_desktop_windows. Fails with XivDesktop's own reason (no match, GhosttyDalamud missing).")]
-    public DesktopReplyDto LaunchDesktopApp(
-        [McpParam("Desktop-file id (preferred) or search text; shown verbatim to the player.")] string app) =>
-        bridge.Launch(app);
+            "that a window appeared. Waits up to 2 seconds for a unique new live panel matching the resolved app; observed and panelId report the observation. Check list_desktop_windows when observed=false. Fails with XivDesktop's own reason (no match, GhosttyDalamud missing).")]
+    public Task<DesktopLaunchDto> LaunchDesktopApp(
+        [McpParam("Desktop-file id (preferred) or search text; shown verbatim to the player.")] string app,
+        CancellationToken ct = default) => bridge.LaunchObservedAsync(app, game, ct);
 
     [McpTool("desktop_window_action",
         Sources = ["ipc:" + DesktopBridge.WindowActionGate],

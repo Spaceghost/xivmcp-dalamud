@@ -53,13 +53,16 @@ What (b) does to come close:
 - `ObjectiveOverlay` draws each objective with a quest icon, the title in the Duty List's title colour, the current step
   (`2/4  Capture: …`) and a status line, in the game's Axis font scaled by the Duty List's scale, with a one-pixel edge
   like game text. Nothing is drawn when there are no active objectives.
+- The same overlay can show one read-only row when approval tickets are waiting. It includes at most two approval
+  summaries and their client names, never the client-supplied reason or tool arguments. Clicking only opens the
+  Approvals tab; the overlay has no approve action.
 - Clicking an entry places the map flag and opens the map on it (`AgentMap.SetFlagMapMarker` + `OpenMap`, the same
   calls as `set_map_flag`). Right-click: step done, back one step, complete, reopen, place flag without opening the map,
   remove. Hover shows every step, where, the conditions and the next window in local time.
 - The game's quest toast (`IToastGui.ShowQuest`) announces a new objective posted by an agent, and a completed one with
   the checkmark and sound. A normal toast says when an objective becomes ready.
-- Settings → Advanced → *Custom objectives*: show/hide, pin under the Duty List (off: a movable window), ready toasts,
-  keep completed ones listed.
+- Settings → Advanced → *Custom objectives*: show/hide objectives and pending approvals, pin the shared overlay under
+  the Duty List (off: a movable window), ready toasts, keep completed objectives listed.
 
 If Dalamud ships a native overlay API, or KamiToolKit is adopted, (a) becomes a drop-in replacement for
 `ObjectiveOverlay` + `DutyListAnchor`: the store, rules and tools do not change.

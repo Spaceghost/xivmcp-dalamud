@@ -276,6 +276,9 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Show the custom objectives overlay (under the game's Duty List).</summary>
     public bool ShowObjectives { get; set; } = true;
 
+    /// <summary>Show a read-only pending-approval row under the Duty List.</summary>
+    public bool ShowApprovalTickets { get; set; } = true;
+
     /// <summary>Pin the overlay under the Duty List (_ToDoList); off makes it a movable window.</summary>
     public bool ObjectivesFollowDutyList { get; set; } = true;
 

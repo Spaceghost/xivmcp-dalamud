@@ -106,7 +106,9 @@ public sealed class Plugin : IDalamudPlugin
             confirmWindow = new ConfirmWindow(confirmations);
             windowSystem.AddWindow(mainWindow);
             windowSystem.AddWindow(confirmWindow);
-            windowSystem.AddWindow(Track(new ObjectiveOverlay(objectives, config, gameGui, textures, pluginInterface, Print)));
+            windowSystem.AddWindow(Track(new ObjectiveOverlay(
+                objectives, approvalQueue, config, gameGui, textures, pluginInterface, Print,
+                mainWindow.OpenApprovals)));
 
             pluginInterface.UiBuilder.Draw += DrawUi;
             pluginInterface.UiBuilder.OpenMainUi += OpenMainUi;

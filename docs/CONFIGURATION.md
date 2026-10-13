@@ -63,8 +63,9 @@ until the plugin reloads.
 Tier and category changes take effect immediately. Connected clients receive `tools/list_changed`,
 `prompts/list_changed` and `resources/list_changed`, and temporary "allow for 10 min" grants are revoked. Resources
 follow the Read tier as well as their category. Grants and approval sessions are kept in memory only (never written to
-this file); permission changes also revoke approval sessions, deny pending tickets when the Action tier goes off (Chat
-tickets when Chat goes off), and leave client tokens and rules alone.
+this file); permission changes also revoke approval sessions, deny pending Action/Chat tickets when the Action tier
+goes off (Chat tickets when Chat goes off), and leave client tokens and rules alone. Approval-required Ui tickets
+depend on the Ui tier and still pass the runner's current permission checks before execution.
 
 Approval tickets are stored separately in `pluginConfigs/XivMcp/approval-tickets.json` (the plugin config directory).
 It holds the arguments of queued calls; treat it like `XivMcp.json`. An unreadable file is renamed to
@@ -80,6 +81,7 @@ It holds the arguments of queued calls; treat it like `XivMcp.json`. An unreadab
 | `NotifyAgentCompletion` | `true` | Dalamud notification when an agent's board entry moves to `done` or `failed`. |
 | `AgentBoardExpiryMinutes` | `120` (0–10080, 0 = never) | Board entries not updated for this long are removed. |
 | `ShowObjectives` | `true` | Show custom objectives (see [OBJECTIVES.md](OBJECTIVES.md)). `/xivmcp quests show\|hide` toggles it. |
+| `ShowApprovalTickets` | `true` | Show one read-only pending-approval row under the Duty List. Clicking opens Approvals; it never approves a request. |
 | `ObjectivesFollowDutyList` | `true` | Pin the objectives under the game's Duty List; off makes them a small movable window. |
 | `NotifyObjectiveReady` | `true` | Normal toast when an objective's conditions become ready. |
 | `ShowCompletedObjectives` | `false` | Keep completed objectives listed (greyed) until cleared. |

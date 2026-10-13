@@ -21,6 +21,8 @@ internal sealed class FakeToolRunner : IToolRunner
 
     public readonly ConcurrentQueue<(string Tool, string? Arguments, string? Client, string? Session)> Runs = new();
 
+    public readonly Dictionary<string, ToolApprovalInfo> Approvals = new();
+
     public Func<string, ToolExecutionResult>? Result { get; set; }
 
     public TaskCompletionSource? Gate { get; set; }
@@ -31,6 +33,8 @@ internal sealed class FakeToolRunner : IToolRunner
             return $"Unknown tool: '{toolName}'.";
         return arguments?["invalid"] is not null ? "Invalid arguments for tool." : null;
     }
+
+    public ToolApprovalInfo? DescribeApproval(string toolName, JsonObject? arguments) => Approvals.GetValueOrDefault(toolName);
 
     public async Task<ToolExecutionResult> ExecuteApprovedToolAsync(string toolName, JsonObject? arguments, string? clientName, string? sessionId, string? authenticatedClient, CancellationToken cancellationToken)
     {
@@ -195,6 +199,124 @@ public class ApprovalQueueTests
     }
 
     [Fact]
+    public async Task ApproveManyUsesCapturedIdsAndNeverAddsTicketsArrivingBeforeOrDuringApproval()
+    {
+        using var f = new ApprovalFixture();
+        f.Runner.Gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var first = f.Submit("teleport");
+        var second = f.Submit("set_target");
+        var captured = new[] { second.Id, first.Id };
+        var later = f.Submit(client: "late before batch");
+        Ticket? during = null;
+        f.Queue.Changed += ticket =>
+        {
+            if (ticket is { State: TicketState.Approved } && ticket.Id == second.Id)
+                during = f.Submit(client: "late during batch");
+        };
+
+        Assert.Equal(2, f.Queue.ApproveMany(captured));
+        Assert.Equal(TicketState.Pending, f.Queue.Get(later.Id)!.State);
+        Assert.NotNull(during);
+        Assert.Equal(TicketState.Pending, f.Queue.Get(during.Id)!.State);
+        f.Runner.Gate.SetResult();
+        await f.WaitForAsync(first.Id, TicketState.Executed);
+        await f.WaitForAsync(second.Id, TicketState.Executed);
+        Assert.Equal(["set_target", "teleport"], f.Runner.Runs.Select(run => run.Tool));
+        Assert.Equal(2, f.Queue.PendingCount);
+    }
+
+    [Fact]
+    public async Task ApproveManyIgnoresDuplicatesUnknownAndNoLongerPendingIds()
+    {
+        using var f = new ApprovalFixture();
+        var pending = f.Submit();
+        var denied = f.Submit();
+        var cancelled = f.Submit();
+        f.Queue.Deny(denied.Id);
+        f.Queue.Cancel(cancelled.Id, cancelled.ClientName);
+
+        Assert.Equal(1, f.Queue.ApproveMany([pending.Id, denied.Id, pending.Id, "t_missing", cancelled.Id]));
+        await f.WaitForAsync(pending.Id, TicketState.Executed);
+        Assert.Equal(0, f.Queue.ApproveMany([pending.Id]));
+        Assert.Equal(TicketState.Denied, f.Queue.Get(denied.Id)!.State);
+        Assert.Equal(TicketState.Cancelled, f.Queue.Get(cancelled.Id)!.State);
+        Assert.Single(f.Runner.Runs);
+    }
+
+    [Fact]
+    public void ApproveManyEmptyInputDoesNotExpandToAllPendingTickets()
+    {
+        using var f = new ApprovalFixture();
+        var ticket = f.Submit();
+        Assert.Equal(0, f.Queue.ApproveMany([]));
+        Assert.Equal(TicketState.Pending, f.Queue.Get(ticket.Id)!.State);
+        Assert.Empty(f.Runner.Runs);
+    }
+
+    [Fact]
+    public void ApproveManyBoundsEnumerationAndRejectsOversizedInputBeforeAnyDecision()
+    {
+        using var f = new ApprovalFixture();
+        var ticket = f.Submit();
+        var enumerated = 0;
+        IEnumerable<string> UnboundedIds()
+        {
+            while (true)
+            {
+                enumerated++;
+                yield return ticket.Id;
+            }
+        }
+
+        Assert.Throws<ArgumentException>(() => f.Queue.ApproveMany(UnboundedIds()));
+        Assert.Equal(ApprovalQueue.MaxPendingTotal + 1, enumerated);
+        Assert.Equal(TicketState.Pending, f.Queue.Get(ticket.Id)!.State);
+        Assert.Empty(f.Runner.Runs);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" \t")]
+    public void ApproveManyValidatesAllIdsBeforeMakingAnyDecision(string? invalid)
+    {
+        using var f = new ApprovalFixture();
+        var ticket = f.Submit();
+        Assert.Throws<ArgumentException>(() => f.Queue.ApproveMany([ticket.Id, invalid!]));
+        Assert.Equal(TicketState.Pending, f.Queue.Get(ticket.Id)!.State);
+        Assert.Empty(f.Runner.Runs);
+    }
+
+    [Fact]
+    public void ApproveManyRejectsNullAndEnumerationFailuresWithoutPartialApproval()
+    {
+        using var f = new ApprovalFixture();
+        var ticket = f.Submit();
+        IEnumerable<string> BrokenIds()
+        {
+            yield return ticket.Id;
+            throw new InvalidOperationException("Snapshot enumeration failed.");
+        }
+
+        Assert.Throws<ArgumentNullException>(() => f.Queue.ApproveMany(null!));
+        Assert.Throws<InvalidOperationException>(() => f.Queue.ApproveMany(BrokenIds()));
+        Assert.Equal(TicketState.Pending, f.Queue.Get(ticket.Id)!.State);
+        Assert.Empty(f.Runner.Runs);
+    }
+
+    [Fact]
+    public async Task ApproveManyAcceptsTheExactBatchLimit()
+    {
+        using var f = new ApprovalFixture();
+        var ticket = f.Submit();
+        var ids = Enumerable.Range(0, ApprovalQueue.MaxPendingTotal)
+            .Select(index => index == 0 ? ticket.Id : $"t_missing_{index}");
+        Assert.Equal(1, f.Queue.ApproveMany(ids));
+        await f.WaitForAsync(ticket.Id, TicketState.Executed);
+        Assert.Single(f.Runner.Runs);
+    }
+
+    [Fact]
     public void TicketsSurviveAReloadAndInterruptedOnesAreNotReRun()
     {
         using var f = new ApprovalFixture();
@@ -287,6 +409,73 @@ public class ApprovalQueueTests
         Assert.Equal(TicketState.Denied, f.Queue.Get(action.Id)!.State);
         Assert.Contains("Action permission tier was disabled", f.Queue.Get(action.Id)!.Error);
         Assert.Equal(0, f.Queue.PendingCount);
+    }
+
+    [Fact]
+    public async Task GatedUiTicketCanBeApprovedAndExecutedWithActionAndChatDisabled()
+    {
+        using var f = new ApprovalFixture(configure: config =>
+        {
+            config.AllowAction = false;
+            config.AllowChat = false;
+        });
+        f.Runner.Tools["set_map_flag"] = ToolPermission.Ui;
+        f.Runner.Approvals["set_map_flag"] = new ToolApprovalInfo(true, ToolPermission.Ui, "Place the map flag.");
+        var ticket = f.Submit("set_map_flag", new JsonObject { ["x"] = 10, ["y"] = 20 });
+        Assert.Equal(TicketState.Pending, ticket.State);
+        Assert.Equal(ToolPermission.Ui, ticket.Permission);
+        Assert.Equal(0, f.Queue.EnforcePermissions());
+
+        Assert.Equal(1, f.Queue.ApproveMany([ticket.Id]));
+        var done = await f.WaitForAsync(ticket.Id, TicketState.Executed);
+        Assert.Null(done.Error);
+        Assert.Equal("set_map_flag", Assert.Single(f.Runner.Runs).Tool);
+    }
+
+    [Theory]
+    [InlineData("teleport")]
+    [InlineData("send_chat")]
+    public async Task ActionAndChatTicketsStillFailIfActionIsDisabledBeforeExecution(string tool)
+    {
+        using var f = new ApprovalFixture();
+        var ticket = f.Submit(tool);
+        // Changed is raised before the approved id is sent to the runner, so
+        // this deterministically exercises revocation without a timing sleep.
+        f.Queue.Changed += changed =>
+        {
+            if (changed is { State: TicketState.Approved } && changed.Id == ticket.Id)
+                f.Config.AllowAction = false;
+        };
+
+        Assert.Equal(1, f.Queue.ApproveMany([ticket.Id]));
+        var failed = await f.WaitForAsync(ticket.Id, TicketState.Failed);
+        Assert.Contains("Action permission tier was disabled", failed.Error);
+        Assert.Empty(f.Runner.Runs);
+    }
+
+    [Fact]
+    public void UngatedUiToolsStillCannotBeSubmittedForApproval()
+    {
+        using var f = new ApprovalFixture(configure: config => config.AllowAction = false);
+        f.Runner.Tools["open_map"] = ToolPermission.Ui;
+        Assert.Contains("needs no approval", Assert.Throws<McpToolException>(() => f.Submit("open_map")).Message);
+        Assert.Empty(f.Queue.Snapshot());
+        Assert.Empty(f.Runner.Runs);
+    }
+
+    [Fact]
+    public async Task GatedUiExecutionStillHonorsNormalRunnerRejection()
+    {
+        using var f = new ApprovalFixture(configure: config => config.AllowAction = false);
+        f.Runner.Tools["set_map_flag"] = ToolPermission.Ui;
+        f.Runner.Approvals["set_map_flag"] = new ToolApprovalInfo(true, ToolPermission.Ui, "Place the map flag.");
+        f.Runner.Result = _ => new ToolExecutionResult(new JsonObject { ["isError"] = true }, true, "The Ui permission tier is disabled.");
+        var ticket = f.Submit("set_map_flag");
+
+        Assert.True(f.Queue.Approve(ticket.Id));
+        var failed = await f.WaitForAsync(ticket.Id, TicketState.Failed);
+        Assert.Equal("The Ui permission tier is disabled.", failed.Error);
+        Assert.Single(f.Runner.Runs);
     }
 
     [Fact]

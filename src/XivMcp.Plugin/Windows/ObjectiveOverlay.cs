@@ -32,25 +32,32 @@ public sealed class ObjectiveOverlay : Window, IDisposable
     private static readonly Vector4 DoneColor = new(0.6f, 0.6f, 0.6f, 1f);
 
     private readonly ObjectiveTracker tracker;
+    private readonly ApprovalQueue approvals;
     private readonly Configuration config;
     private readonly IGameGui gameGui;
     private readonly ITextureProvider textures;
     private readonly IDalamudPluginInterface pluginInterface;
     private readonly Action<string> print;
+    private readonly Action openApprovals;
     private readonly IFontHandle font;
+    private readonly ApprovalOverlayState approvalState;
     private DutyListLayout layout;
+    private ApprovalOverlayLine? approvalLine;
 
     public ObjectiveOverlay(
-        ObjectiveTracker tracker, Configuration config, IGameGui gameGui, ITextureProvider textures, IDalamudPluginInterface pluginInterface,
-        Action<string> print)
+        ObjectiveTracker tracker, ApprovalQueue approvals, Configuration config, IGameGui gameGui, ITextureProvider textures,
+        IDalamudPluginInterface pluginInterface, Action<string> print, Action openApprovals)
         : base("Custom objectives##XivMcpObjectives")
     {
         this.tracker = tracker;
+        this.approvals = approvals;
         this.config = config;
         this.gameGui = gameGui;
         this.textures = textures;
         this.pluginInterface = pluginInterface;
         this.print = print;
+        this.openApprovals = openApprovals;
+        approvalState = new ApprovalOverlayState(approvals.Snapshot);
         font = pluginInterface.UiBuilder.FontAtlas.NewGameFontHandle(new GameFontStyle(GameFontFamilyAndSize.Axis14));
         IsOpen = true;
         RespectCloseHotkey = false;
@@ -58,6 +65,10 @@ public sealed class ObjectiveOverlay : Window, IDisposable
         ShowCloseButton = false;
         AllowPinning = false;
         AllowClickthrough = false;
+        // Subscribe only after acquiring the font: a constructor failure must
+        // not leave an untracked overlay retained by the approval queue.
+        approvals.Changed += OnApprovalsChanged;
+        OnApprovalsChanged(null);
     }
 
     private IEnumerable<ObjectiveView> Visible =>
@@ -65,7 +76,13 @@ public sealed class ObjectiveOverlay : Window, IDisposable
 
     public override bool DrawConditions()
     {
-        if (!config.ShowObjectives || gameGui.GameUiHidden || !Visible.Any())
+        // Queue events can arrive concurrently on workers. Only this UI thread
+        // reads snapshots and publishes display state, so an older callback
+        // cannot overwrite a newer row or resurrect completed requests.
+        approvalLine = approvalState.Refresh();
+        var hasObjectives = config.ShowObjectives && Visible.Any();
+        var hasApprovals = config.ShowApprovalTickets && approvalLine is not null;
+        if (gameGui.GameUiHidden || (!hasObjectives && !hasApprovals))
             return false;
         layout = DutyListAnchor.Read(gameGui);
         return !config.ObjectivesFollowDutyList || layout.Visible;
@@ -106,12 +123,48 @@ public sealed class ObjectiveOverlay : Window, IDisposable
         {
             ImGui.SetWindowFontScale(scale);
             ImGui.PushTextWrapPos(ImGui.GetContentRegionAvail().X + ImGui.GetCursorPosX());
-            foreach (var view in Visible.ToArray())
-                DrawEntry(view, scale);
+            if (config.ShowApprovalTickets && approvalLine is { } line)
+                DrawApprovalEntry(line, scale);
+            if (config.ShowObjectives)
+                foreach (var view in Visible.ToArray())
+                    DrawEntry(view, scale);
             ImGui.PopTextWrapPos();
             ImGui.SetWindowFontScale(1f);
         }
     }
+
+    private void DrawApprovalEntry(ApprovalOverlayLine line, float scale)
+    {
+        ImGui.PushID("pending-approvals");
+        var start = ImGui.GetCursorScreenPos();
+        var iconSize = new Vector2(ImGui.GetTextLineHeight());
+        var icon = textures.GetFromGameIcon(new GameIconLookup(QuestIconId)).GetWrapOrEmpty();
+        ImGui.Image(icon.Handle, iconSize);
+        ImGui.SameLine(0, 4 * scale);
+        EdgeText(line.Text, ProblemColor, layout.TitleEdge ?? DefaultEdge);
+
+        var end = ImGui.GetCursorScreenPos();
+        var size = new Vector2(Math.Max(ImGui.GetContentRegionAvail().X, 1), Math.Max(end.Y - start.Y, 1));
+        ImGui.SetCursorScreenPos(start);
+        var clicked = ImGui.InvisibleButton("entry", size, ImGuiButtonFlags.MouseButtonLeft);
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.GetWindowDrawList().AddRectFilled(start, start + size, ImGui.GetColorU32(new Vector4(1, 1, 1, 0.06f)), 3);
+            using var tooltip = ImRaii.Tooltip();
+            ImGui.SetWindowFontScale(1f);
+            ImGui.TextUnformatted("Click: open Approvals. Nothing is approved from this row.");
+        }
+        // InvisibleButton owns the press/release pair. Releasing a drag that
+        // began elsewhere over this row must never activate it.
+        if (clicked)
+            openApprovals();
+
+        ImGui.SetCursorScreenPos(new Vector2(start.X, end.Y + (4 * scale)));
+        ImGui.Dummy(Vector2.Zero);
+        ImGui.PopID();
+    }
+
+    private void OnApprovalsChanged(Ticket? _) => approvalState.Invalidate();
 
     private void DrawEntry(ObjectiveView view, float scale)
     {
@@ -156,15 +209,19 @@ public sealed class ObjectiveOverlay : Window, IDisposable
         var end = ImGui.GetCursorScreenPos();
         var size = new Vector2(Math.Max(ImGui.GetContentRegionAvail().X, 1), Math.Max(end.Y - start.Y, 1));
         ImGui.SetCursorScreenPos(start);
-        ImGui.InvisibleButton("entry", size, ImGuiButtonFlags.MouseButtonLeft | ImGuiButtonFlags.MouseButtonRight);
+        var clicked = ImGui.InvisibleButton("entry", size, ImGuiButtonFlags.MouseButtonLeft | ImGuiButtonFlags.MouseButtonRight);
+        var rightClick = clicked && ImGui.IsMouseReleased(ImGuiMouseButton.Right);
         if (ImGui.IsItemHovered())
         {
             ImGui.GetWindowDrawList().AddRectFilled(start, start + size, ImGui.GetColorU32(new Vector4(1, 1, 1, 0.06f)), 3);
             DrawTooltip(view);
-            if (ImGui.IsMouseReleased(ImGuiMouseButton.Left))
-                OnClick(o);
-            else if (ImGui.IsMouseReleased(ImGuiMouseButton.Right))
+        }
+        if (clicked)
+        {
+            if (rightClick)
                 ImGui.OpenPopup("actions");
+            else
+                OnClick(o);
         }
         DrawActions(o);
 
@@ -273,5 +330,9 @@ public sealed class ObjectiveOverlay : Window, IDisposable
         ImGui.Dummy(size);
     }
 
-    public void Dispose() => font.Dispose();
+    public void Dispose()
+    {
+        approvals.Changed -= OnApprovalsChanged;
+        font.Dispose();
+    }
 }

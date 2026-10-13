@@ -363,6 +363,27 @@ public sealed class ApprovalQueue : IDisposable
 
     public bool Deny(string id) => Decide(id, approve: false, "player", null) != null;
 
+    /// <summary>
+    /// Approves only the supplied pending ticket ids, in their supplied order.
+    /// Capture these ids when the player starts activating a displayed batch;
+    /// tickets arriving afterwards are never added to that approval. Unknown,
+    /// repeated and no-longer-pending ids are ignored. The entire input is
+    /// validated before any decision, with at most <see cref="MaxPendingTotal"/>
+    /// entries accepted (including repeats).
+    /// </summary>
+    public int ApproveMany(IEnumerable<string> ids)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+        // Bound enumeration itself, not only the number of distinct ids: an
+        // unbounded or repeat-heavy source must not stall a UI approval.
+        var selected = ids.Take(MaxPendingTotal + 1).ToArray();
+        if (selected.Length > MaxPendingTotal)
+            throw new ArgumentException($"An approval batch may contain at most {MaxPendingTotal} ticket ids.", nameof(ids));
+        if (selected.Any(string.IsNullOrWhiteSpace))
+            throw new ArgumentException("An approval batch must not contain empty ticket ids.", nameof(ids));
+        return selected.Distinct(StringComparer.Ordinal).Count(id => Decide(id, approve: true, "player", null) != null);
+    }
+
     /// <summary>Approves every pending ticket, oldest first. Returns how many.</summary>
     public int ApproveAll() => DecideAll(approve: true, null);
 
@@ -532,7 +553,10 @@ public sealed class ApprovalQueue : IDisposable
         var started = Stopwatch.GetTimestamp();
         ToolExecutionResult? result = null;
         string? error = null;
-        if (!config.AllowAction)
+        // Gated Ui tools use their own permission tier, just as in Submit and
+        // EnforcePermissions. The normal runner still rechecks the actual
+        // tool's current tier/category/login requirements before executing it.
+        if (!config.AllowAction && ticket.Permission != ToolPermission.Ui)
         {
             error = "Not run: the Action permission tier was disabled after approval.";
         }

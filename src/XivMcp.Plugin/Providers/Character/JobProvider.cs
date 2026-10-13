@@ -16,8 +16,15 @@ public sealed class JobProvider
 {
     private static readonly Dictionary<string, string> BaseClassToJob = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["GLA"] = "PLD", ["PGL"] = "MNK", ["MRD"] = "WAR", ["LNC"] = "DRG", ["ARC"] = "BRD",
-        ["CNJ"] = "WHM", ["THM"] = "BLM", ["ACN"] = "SMN", ["ROG"] = "NIN",
+        ["GLA"] = "PLD",
+        ["PGL"] = "MNK",
+        ["MRD"] = "WAR",
+        ["LNC"] = "DRG",
+        ["ARC"] = "BRD",
+        ["CNJ"] = "WHM",
+        ["THM"] = "BLM",
+        ["ACN"] = "SMN",
+        ["ROG"] = "NIN",
     };
 
     private static readonly ConcurrentDictionary<Type, (MethodInfo Get, PropertyInfo[] Properties)> GaugeCache = new();

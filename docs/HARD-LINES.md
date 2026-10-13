@@ -1,7 +1,7 @@
 # Hard lines
 
-> Nothing in this repository has been verified inside the running game. This page is about what the
-> server is *for*, and what will not be added to it however it is asked for.
+> This page is about what the server is *for*, and what will not be added to it however it is asked for.
+> See the README and individual changelog entries for the scope of live and host-side verification.
 
 XivMcp gives an assistant **information, planning help, UI and quality-of-life assistance, and control of the
 owner's own mods**. It does not play the game.

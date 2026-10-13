@@ -201,8 +201,8 @@ public sealed class SheetDataProvider : IDisposable
             if (raw is RawSubrowExcelSheet subSheet)
             {
                 foreach (var rows in new SubrowExcelSheet<RawSubrow>(subSheet))
-                foreach (var r in rows)
-                    Consider(() => r.ReadColumn(colIndex), () => null, r.RowId, r.SubrowId);
+                    foreach (var r in rows)
+                        Consider(() => r.ReadColumn(colIndex), () => null, r.RowId, r.SubrowId);
             }
             else
             {
