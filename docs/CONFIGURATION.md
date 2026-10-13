@@ -53,7 +53,7 @@ until the plugin reloads.
 | `AllowAction` | `false` | Act in your client: target, gearsets, teleport, slash commands. |
 | `AllowChat` | `false` | Chat other players can see: say, party, tells, FC. |
 | `ConfirmActions` | `true` | **Ask me before anything changes** — the one approval switch, at the top of Settings. On: every state-changing tool (Action, Chat, and the Ui tools that ask, such as the map flag) waits for Allow / Deny or a ticket; sessions, grants and auto-approve rules are shortcuts under it. Off: they run at once, are still written to the action log (`actions.log`), and chat or gear changes still show a notification. Ships on; see [HARD-LINES.md](HARD-LINES.md). |
-| `RateLimitPerMinute` | `600` | Calls per minute allowed per client (per-client token, else session). `0` = unlimited. |
+| `RateLimitPerMinute` | `600` | Calls per minute allowed per client (per-client token, else session). `0` = unlimited. Editable live under Settings → Advanced; Status shows each caller's current 60-second window and burst use. |
 | `ConfirmTimeoutSeconds` | `20` (5–300) | Seconds before a pending confirmation is denied automatically (the client gets "not confirmed in game within N s"). |
 | `DisabledCategories` | `[]` | Provider categories that are switched off (e.g. `"chat"`). Their tools, resources and prompts are hidden and rejected. |
 | `ApprovalSessionMinutes` | `5` (1–60) | Length of an "Allow everything from this client" approval session started from the Approvals tab. Sessions themselves are never saved. See [APPROVALS.md](APPROVALS.md). |
@@ -63,8 +63,9 @@ until the plugin reloads.
 Tier and category changes take effect immediately. Connected clients receive `tools/list_changed`,
 `prompts/list_changed` and `resources/list_changed`, and temporary "allow for 10 min" grants are revoked. Resources
 follow the Read tier as well as their category. Grants and approval sessions are kept in memory only (never written to
-this file); permission changes also revoke approval sessions, deny pending tickets when the Action tier goes off (Chat
-tickets when Chat goes off), and leave client tokens and rules alone.
+this file); permission changes also revoke approval sessions, deny pending Action/Chat tickets when the Action tier
+goes off (Chat tickets when Chat goes off), and leave client tokens and rules alone. Approval-required Ui tickets
+depend on the Ui tier and still pass the runner's current permission checks before execution.
 
 Approval tickets are stored separately in `pluginConfigs/XivMcp/approval-tickets.json` (the plugin config directory).
 It holds the arguments of queued calls; treat it like `XivMcp.json`. An unreadable file is renamed to
@@ -80,6 +81,7 @@ It holds the arguments of queued calls; treat it like `XivMcp.json`. An unreadab
 | `NotifyAgentCompletion` | `true` | Dalamud notification when an agent's board entry moves to `done` or `failed`. |
 | `AgentBoardExpiryMinutes` | `120` (0–10080, 0 = never) | Board entries not updated for this long are removed. |
 | `ShowObjectives` | `true` | Show custom objectives (see [OBJECTIVES.md](OBJECTIVES.md)). `/xivmcp quests show\|hide` toggles it. |
+| `ShowApprovalTickets` | `true` | Show one read-only pending-approval row under the Duty List. Clicking opens Approvals; it never approves a request. |
 | `ObjectivesFollowDutyList` | `true` | Pin the objectives under the game's Duty List; off makes them a small movable window. |
 | `NotifyObjectiveReady` | `true` | Normal toast when an objective's conditions become ready. |
 | `ShowCompletedObjectives` | `false` | Keep completed objectives listed (greyed) until cleared. |

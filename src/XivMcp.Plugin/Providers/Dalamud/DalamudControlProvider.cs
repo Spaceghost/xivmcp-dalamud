@@ -115,7 +115,7 @@ public sealed class DalamudControlProvider
 
         PluginToggleRules.EnsureCanSetEnabled(facts, enabled, pluginInterface.InternalName);
         await RunDalamud(() => DalamudInternals.SetEnabledAsync(internalPlugin, context.SingleProfile!, enabled), enabled ? "enable" : "disable", facts.InternalName, ctx).ConfigureAwait(false);
-        return After(target, enabled, changed: true);
+        return After(internalPlugin, enabled, changed: true);
     }
 
     [McpTool("reload_plugin",
@@ -141,7 +141,7 @@ public sealed class DalamudControlProvider
         PluginToggleRules.EnsureCanReload(facts, pluginInterface.InternalName);
 
         await RunDalamud(() => DalamudInternals.ReloadAsync(internalPlugin), "reload", facts.InternalName, ctx).ConfigureAwait(false);
-        return After(target, enabled: true, changed: true);
+        return After(internalPlugin, enabled: true, changed: true);
     }
 
     [McpTool("add_plugin_repository",
@@ -216,13 +216,15 @@ public sealed class DalamudControlProvider
 
     private static InternalPlugin ResolveInternal(IExposedPlugin target, string[] keys)
     {
+        // Capture the exact selected installation before reading the internal snapshot. Name-only matching
+        // loses the public resolver's dev/repository choice; IsLoaded can change while the player clicks.
+        var manifest = target.Manifest;
+        var internalName = target.InternalName;
+        var isDev = target.IsDev;
         var plugins = DalamudInternals.GetPlugins() ?? throw DalamudInspectProvider.Unavailable(keys, "its plugin manager");
         if (DalamudInternals.FirstMissing(keys) is not null)
             throw DalamudInspectProvider.Unavailable(keys, "its plugin manager");
-        var matches = plugins.Where(p => string.Equals(p.InternalName, target.InternalName, StringComparison.OrdinalIgnoreCase)).ToList();
-        return matches.Count == 1
-            ? matches[0]
-            : throw McpToolException.WithCode(McpErrorCodes.Unavailable, $"Dalamud's plugin manager lists {matches.Count} plugins named {target.InternalName}; act on it in the plugin installer instead.");
+        return PluginControlIdentity.Resolve(plugins, internalName, isDev, manifest);
     }
 
     private static async Task RunDalamud(Func<Task> action, string verb, string internalName, ToolContext? ctx)
@@ -247,12 +249,12 @@ public sealed class DalamudControlProvider
         }
     }
 
-    private PluginStateResult After(IExposedPlugin target, bool enabled, bool changed)
+    private static PluginStateResult After(InternalPlugin target, bool enabled, bool changed)
     {
-        var internals = DalamudInternals.GetPlugins();
-        var now = internals is null ? null : PluginInstances.Find(internals, target.InternalName, static p => p.InternalName, static p => p.IsLoaded);
-        var loaded = now?.IsLoaded ?? PluginInstances.Find(pluginInterface.InstalledPlugins, target.InternalName, static p => p.InternalName, static p => p.IsLoaded)?.IsLoaded ?? false;
-        return new PluginStateResult(target.InternalName, target.Name, enabled, changed, now?.State ?? (loaded ? "Loaded" : "Unloaded"), loaded);
+        var internals = DalamudInternals.GetPlugins()
+            ?? throw McpToolException.WithCode(McpErrorCodes.Unavailable, $"The operation on {target.InternalName} may have completed, but Dalamud's plugin manager could not be read afterwards. Inspect the plugin installer before retrying.");
+        var now = PluginControlIdentity.Refresh(internals, target);
+        return new PluginStateResult(target.InternalName, target.Name, enabled, changed, now.State, now.IsLoaded);
     }
 
     public sealed record OpenPluginUiResult(string InternalName, string Name, string Which);

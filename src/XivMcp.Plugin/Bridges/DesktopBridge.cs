@@ -8,6 +8,7 @@ public sealed record DesktopAppDto(string Id, string Name, string? Generic, List
 public sealed record DesktopAppListDto(int Total, int Matched, int Offset, bool Truncated, List<DesktopAppDto> Apps, string Note);
 
 public sealed record DesktopReplyDto(string Gate, bool Ok, string Message, string Note);
+public sealed record DesktopLaunchDto(DesktopReplyDto Launch, bool Observed, long? PanelId, string Note);
 
 /// <summary>The typed XivDesktop tools' decisions: gate names, argument checks, paging and reply parsing.</summary>
 public sealed class DesktopBridge
@@ -185,6 +186,35 @@ public sealed class DesktopBridge
     {
         var text = BridgeJson.CheckArgument("app", app, maxBytes: 256);
         return Change(LaunchGate, text, "\"ok\" means the launch was handed to GhosttyDalamud's desktop agent, not that a window appeared; list_desktop_windows shows it once it has.");
+    }
+
+    public async Task<DesktopLaunchDto> LaunchObservedAsync(string? app, IGameThread game, CancellationToken ct,
+        Func<TimeSpan, CancellationToken, Task>? delay = null)
+    {
+        delay ??= Task.Delay;
+        ct.ThrowIfCancellationRequested();
+        var before = await game.InvokeAsync(() => ReadJson(WindowsGate).Result, ct).ConfigureAwait(false);
+        var ids = (before?["windows"] as JsonArray ?? []).OfType<JsonObject>()
+            .Select(w => BridgeJson.Integer(w, "id")).OfType<long>().ToHashSet();
+        var launch = await game.InvokeAsync(() => Launch(app), ct).ConfigureAwait(false);
+        // The v1 gate includes the resolved catalogue id in its text reply, even for a search query.
+        var end = launch.Message.LastIndexOf(')');
+        var start = launch.Message.LastIndexOf('(');
+        var resolvedId = end == launch.Message.Length - 1 && start >= 0 ? launch.Message[(start + 1)..end] : app?.Trim();
+        for (var poll = 0; poll < 20; poll++)
+        {
+            await delay(TimeSpan.FromMilliseconds(100), ct).ConfigureAwait(false);
+            var snapshot = await game.InvokeAsync(() => ReadJson(WindowsGate).Result, ct).ConfigureAwait(false);
+            var matching = (snapshot?["windows"] as JsonArray ?? []).OfType<JsonObject>()
+                .Where(w => BridgeJson.Integer(w, "id") is { } id && !ids.Contains(id)
+                    && BridgeJson.Text(w, "state") == "live"
+                    && string.Equals(BridgeJson.Text(w, "appId"), resolvedId, StringComparison.OrdinalIgnoreCase)).ToArray();
+            if (matching.Length == 1)
+                return new(launch, true, BridgeJson.Integer(matching[0], "id"),
+                    "A new live panel matching the resolved app was observed. The v1 gate has no request correlation; concurrent launches of this app cannot be distinguished.");
+        }
+        return new(launch, false, null,
+            "Launch handed over; no unique new live panel matched within 2 seconds. This does not prove failure. Check list_desktop_windows; existing app instances, privacy masking or slow startup can prevent observation.");
     }
 
     public DesktopReplyDto WindowAction(string? action, long id, string? pin, int workspace) =>

@@ -14,7 +14,7 @@ namespace XivMcp.Plugin.Providers.DalamudInfo;
 public sealed record DalamudInternalName(string Key, string TypeName, string? Member = null, bool IsStatic = false, string[]? Parameters = null);
 
 /// <summary>What the plugin manager knows about one installed plugin. <see cref="Instance"/> is Dalamud's LocalPlugin and never leaves the provider.</summary>
-internal sealed record InternalPlugin(object Instance, string InternalName, string Name, string State, bool IsLoaded, bool IsDev, bool IsOutdated, bool IsBanned, bool IsOrphaned, Guid WorkingPluginId);
+internal sealed record InternalPlugin(object Instance, string InternalName, string Name, string State, bool IsLoaded, bool IsDev, bool IsOutdated, bool IsBanned, bool IsOrphaned, Guid WorkingPluginId, object? ManifestIdentity);
 
 internal sealed record InternalRepository(string Url, bool IsEnabled);
 
@@ -71,6 +71,7 @@ internal static class DalamudInternals
         new("Profile.AddOrUpdateAsync", Profile, "AddOrUpdateAsync", Parameters: ["Guid", "String", "Boolean", "Boolean"]),
 
         new("LocalPlugin.InternalName", LocalPlugin, "InternalName"),
+        new("LocalPlugin.Manifest", LocalPlugin, "Manifest"),
         new("LocalPlugin.Name", LocalPlugin, "Name"),
         new("LocalPlugin.State", LocalPlugin, "State"),
         new("LocalPlugin.IsLoaded", LocalPlugin, "IsLoaded"),
@@ -111,10 +112,10 @@ internal static class DalamudInternals
     public static readonly string[] ToggleKeys =
     [
         .. PluginKeys, "PluginManager.SafeMode", "ProfileManager", "ProfileManager.Profiles", "ProfileManager.IsBusy", "Profile.IsEnabled", "Profile.IsDefaultProfile",
-        "Profile.WantsPlugin", "Profile.AddOrUpdateAsync", "LocalPlugin.LoadAsync", "LocalPlugin.UnloadAsync",
+        "Profile.WantsPlugin", "Profile.AddOrUpdateAsync", "LocalPlugin.LoadAsync", "LocalPlugin.UnloadAsync", "LocalPlugin.Manifest",
     ];
 
-    public static readonly string[] ReloadKeys = [.. PluginKeys, "PluginManager.SafeMode", "ProfileManager", "ProfileManager.IsBusy", "LocalPlugin.ReloadAsync"];
+    public static readonly string[] ReloadKeys = [.. PluginKeys, "PluginManager.SafeMode", "ProfileManager", "ProfileManager.IsBusy", "LocalPlugin.ReloadAsync", "LocalPlugin.Manifest"];
 
     public static readonly string[] DrawStatsKeys =
     [
@@ -210,7 +211,8 @@ internal static class DalamudInternals
                 Get("LocalPlugin.IsOutdated", plugin) is true,
                 Get("LocalPlugin.IsBanned", plugin) is true,
                 Get("LocalPlugin.IsOrphaned", plugin) is true,
-                Get("LocalPlugin.EffectiveWorkingPluginId", plugin) as Guid? ?? Guid.Empty));
+                Get("LocalPlugin.EffectiveWorkingPluginId", plugin) as Guid? ?? Guid.Empty,
+                Get("LocalPlugin.Manifest", plugin)));
         }
 
         return result;

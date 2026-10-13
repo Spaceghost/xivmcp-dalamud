@@ -304,6 +304,14 @@ public sealed partial class MainWindow
         ImGui.EndDisabled();
         HelpMarker("5-600, default 30. Upper bound for one tool/resource/prompt call; for Action/Chat it starts after your approval. Applies immediately.");
 
+        var rateLimit = config.RateLimitPerMinute;
+        ImGui.SetNextItemWidth(160);
+        if (ImGui.InputInt("Calls per minute per client", ref rateLimit, 10, 100))
+            config.RateLimitPerMinute = Math.Clamp(rateLimit, 0, 100_000);
+        if (ImGui.IsItemDeactivatedAfterEdit())
+            SaveConfig();
+        HelpMarker("0-100000, default 600. Shared by tools, resource reads and prompts for each client token (otherwise each session). 0 = unlimited. Applies immediately.");
+
         var chatBuffer = config.ChatBufferSize;
         ImGui.SetNextItemWidth(160);
         if (ImGui.InputInt("Chat buffer lines", ref chatBuffer, 50, 500))
@@ -349,8 +357,10 @@ public sealed partial class MainWindow
         ImGui.Separator();
         SettingCheckbox("Show custom objectives", config.ShowObjectives, v => config.ShowObjectives = v,
             "Objectives posted by agents (post_objective) or loaded from a pack (/xivmcp quests load <file>).");
+        SettingCheckbox("Show pending approvals under the Duty List", config.ShowApprovalTickets, v => config.ShowApprovalTickets = v,
+            "Clicking the row only opens Approvals. It never approves a request.");
         SettingCheckbox("Pin under the Duty List", config.ObjectivesFollowDutyList, v => config.ObjectivesFollowDutyList = v,
-            "Off: a small movable window instead (drag it anywhere).");
+            "Applies to objectives and pending approvals. Off: a small movable window instead (drag it anywhere).");
         SettingCheckbox("Toast when an objective becomes ready", config.NotifyObjectiveReady, v => config.NotifyObjectiveReady = v, null);
         SettingCheckbox("Keep completed objectives listed", config.ShowCompletedObjectives, v => config.ShowCompletedObjectives = v,
             "Greyed out until cleared (/xivmcp quests clear-done).");

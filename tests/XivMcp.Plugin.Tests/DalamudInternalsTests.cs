@@ -46,6 +46,8 @@ public class DalamudInternalsTests
         Assert.Equal(typeof(bool), PropertyType("PluginManager.SafeMode"));
         Assert.Equal(typeof(bool), PropertyType("ProfileManager.IsBusy"));
         Assert.Equal(typeof(Guid), PropertyType("LocalPlugin.EffectiveWorkingPluginId"));
+        Assert.Equal(typeof(IExposedPlugin).GetProperty(nameof(IExposedPlugin.Manifest))!.PropertyType,
+            PropertyType("LocalPlugin.Manifest"));
         Assert.True(PropertyType("LocalPlugin.State").IsEnum);
         Assert.Equal(typeof(long), PropertyType("DrawStatistics.AverageDrawTime"));
         Assert.Equal(typeof(bool), PropertyType("UiBuilder.DoStats"));

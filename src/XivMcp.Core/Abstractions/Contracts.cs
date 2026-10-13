@@ -294,3 +294,16 @@ public sealed record ServerStatus(
     long FailedRequests,
     string? LastError,
     IReadOnlyList<string> ConnectedClients);
+
+/// <summary>
+/// Lock-free UI snapshot of one displayed caller's rate bucket. Calls are attempts in the current fixed 60-second
+/// window (accepted and rejected); callers with the same displayed name are combined.
+/// </summary>
+public sealed record ClientRateLimitStatus(
+    string Client,
+    bool Authenticated,
+    int CallsInWindow,
+    int LimitPerMinute,
+    double BurstUsed,
+    int BurstCapacity,
+    double WindowSecondsRemaining);

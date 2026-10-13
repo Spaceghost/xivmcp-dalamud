@@ -104,6 +104,7 @@ public sealed class ServerInfoProvider
             CatalogueVersion = McpServer.CatalogueVersion,
             StaticTools = host.Server.ExportCatalogue()["tools"]!.AsArray().Count(t => t!["availability"]!.GetValue<string>() == "static"),
             RateLimitPerMinute = host.Server.Options.RateLimitPerMinute,
+            ClientBudgets = host.GetClientRateLimits(),
         };
     }
 }

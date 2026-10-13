@@ -28,6 +28,21 @@ HUD family discovery and module snapshots have live smoke evidence. UI mutations
 
 * Nine HUD family tools and ffxiv://hud independently discover XivHud, Journal and Character, read cached UI/controller/host diagnostics, and queue explicit approved UI changes. Request results distinguish queued, applied and refused; actual host presentation remains a separate status read. Shared libraries are bundled and Character remains manual-only.
 * Passive companion bridge discovery now includes Piano, Lantern, Wayfinder and Rug/FloorMap diagnostics.
+* A per-client call meter on Status shows attempts in the current 60-second window against the player's rate limit, plus burst-bucket use, without taking the request path's lock. Named client tokens are identified as authenticated; same-named sessions share the displayed bar. Advanced now has the long-missing live rate-limit control (0 means unlimited), and get_server_info reports the same snapshots in both plugin and standalone hosts. Core tests cover allowed and rejected calls appearing in the meter; not tried in game.
+
+### Being built
+
+* Approval stability fixes in development: batch approval captures only the ticket IDs displayed when the button is pressed, leaving later arrivals waiting; approved UI-only calls no longer depend on the unrelated Action tier. Duty List rows use real button activation instead of drag-release, refresh on the UI thread without losing worker updates, and open pending approvals at the top. Blank summaries have readable fallbacks and approval details expose invisible formatting characters. Host regression coverage added; not yet deployed or visually verified in-game.
+* Development builds can address the exact loaded installation when a dev and repository plugin share a name. Reload and enable/disable operations retain that installation's identity through the result instead of switching to a sibling. Missing or ambiguous identity fails safely; approval and self-reload protections remain in place. Covered by host tests; not yet deployed to the running MCP server.
+* An optional Wayfinder bridge reads journeys, appends bounded batches of stops, and controls a journey through approval-gated actions. It needs no Wayfinder assembly dependency. Guidance changes disclose that Wayfinder's separately enabled automatic teleport policy may spend gil. Implemented and host-tested in development; not yet deployed to the running MCP server.
+
+### Merged, not yet verified in game
+
+* Pending approval tickets can now appear as one read-only row under the Duty List, showing at most two safe action summaries and their client names. Clicking opens the Approvals tab; there is deliberately no approve action in the overlay, and client-supplied reasons and tool arguments are never shown there. The row can be disabled independently in Advanced and follows the same Duty List anchor as custom objectives. Covered by host tests; not tried in game.
+
+### Being built
+
+* Desktop launch observation in development: launch_desktop_app keeps its per-call Action approval and now polls XivDesktop off the game thread for up to two seconds. It reports observed/panelId only for a unique new live panel matching the resolved application. Pending, pre-existing, unrelated, masked or ambiguous panels do not count. The v1 launch gate has no request correlation, so concurrent same-app launches cannot be distinguished; timeout means handed over, not failed. Not verified in game.
 
 ## [0.1.1] — Released 2026-09-23
 

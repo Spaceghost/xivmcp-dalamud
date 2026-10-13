@@ -526,6 +526,18 @@ public sealed class ServerHost : IDisposable
         }
     }
 
+    public IReadOnlyList<ClientRateLimitStatus> GetClientRateLimits()
+    {
+        try
+        {
+            return Server.GetClientRateLimits();
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
     public IReadOnlyList<(string Name, string? Title, string Description, ToolPermission Permission, string Category)> ListTools()
     {
         try

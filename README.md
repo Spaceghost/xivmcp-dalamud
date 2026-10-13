@@ -18,10 +18,7 @@ Dalamud plugin. MCP clients such as Claude Code connect to it over Streamable HT
 player's UI and — only when the player opts in — actions and chat. An optional Umbra toolbar widget
 shows server status and the agent board.
 
-> **Status.** The plugin builds against Dalamud API 15 (Dalamud 15.0.3.4, .NET 10). The MCP runtime and
-> the plugin logic that needs no game (confirmation service, chat rules, IPC payloads, map maths) have host-side
-> tests, but **the plugin has not yet been observed running in the game**. Nothing below about in-game behaviour
-> has been observed; treat it as the design, not as verified results.
+> **Status.** The plugin builds against Dalamud API 15 and .NET 10. Selected live checks have verified plugin control and HUD-family discovery/snapshots; broader approval UI, mutation and standalone hand-off behavior remains unverified. Host tests cover the development changes, including the new Wayfinder tools. See individual changelog entries for the scope and date of each result.
 
 ## HUD family
 
@@ -307,7 +304,7 @@ do not edit the block by hand.
 
 <!-- BEGIN GENERATED CATALOG: dotnet run --project tools/catalog -- readme --write README.md -->
 
-165 tools (44 change something and go through the approval switch; 26 also work before the game starts), 20 resources and templates, 10 prompts.
+168 tools (46 change something and go through the approval switch; 26 also work before the game starts), 20 resources and templates, 10 prompts.
 Catalogue version 2; the machine-readable listing is [docs/tools.json](docs/tools.json) and the full reference (arguments, data sources, approval text) is [docs/TOOLS.md](docs/TOOLS.md).
 Tier and category are the in-game switches; *Login* means the call fails at the title screen; *Approval* means the call waits for you in game
 while *Ask me before anything changes* is ticked; *Pre-game* means the standalone host serves it while the game is closed.
@@ -477,11 +474,14 @@ Behaviour in game is unverified unless stated elsewhere.
 | `get_housing_info` | Read | world | yes | — | — | Where the player is in the housing system: inHousingArea, territoryId/zone, ward (1-based), plot (1-based, null in an apartment or subdivision entrance), division (1 = main area, 2 = subdivision), room (apartment/FC r… |
 | `get_location` | Read | world | yes | — | — | Where the player is. |
 | `get_time` | Read | world | no | — | yes | Current Eorzea time and the real-world reset schedule. |
+| `get_wayfinder_journey` | Read | world | no | — | — | Reads XivWayfinder's saved stops, zero-based progress index and running state. |
 | `get_weather_forecast` | Read | world | no | — | yes | Weather forecast for a zone computed with the game's own deterministic weather algorithm (weather changes every 8 Eorzea hours = 23m20s real time, at ET 00:00, 08:00 and 16:00). |
 | `get_zone_live` | Read | world | yes | — | — | What is going on in the zone the player is standing in, right now, in one call: territoryId, zone and region names, intendedUse (Town, Overworld, Dungeon, HousingOutdoor, ...), map, area/subArea place names, instance… |
 | `list_aetherytes` | Read | world | yes | — | — | The player's teleport list (the in-game Teleport window): every attuned aetheryte plus housing destinations (own/FC house, shared estates, apartments). |
 | `list_fates` | Read | world | yes | — | — | FATEs currently known in the player's zone, nearest first. |
 | `list_nearby_objects` | Read | world | yes | — | — | Game objects loaded around the player (the client only knows objects within roughly 100 yalms, fewer in crowded areas), sorted nearest first; the local player is excluded. |
+| `append_wayfinder_stops` | Action | world | yes | yes | — | Appends a batch of world-coordinate destinations to the player's existing Wayfinder itinerary. |
+| `control_wayfinder_journey` | Action | world | yes | yes | — | Pause/resume guidance, explicitly advance to the next stop, or return to the previous stop. |
 
 ### Resources
 

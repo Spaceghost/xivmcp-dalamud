@@ -617,7 +617,7 @@ public class BridgeFamilyTests
         {
             // Today's siblings: GhosttyDalamud answers "unknown method"; XivDesktop and Almanac do not register the gates.
             object provider = method.DeclaringType == typeof(TerminalBridgeProvider) ? TerminalProvider(Ghostty())
-                : method.DeclaringType == typeof(DesktopAppsBridgeProvider) ? With(new DesktopAppsBridgeProvider(Pi(), Log()), new DesktopBridge(Desktop()))
+                : method.DeclaringType == typeof(DesktopAppsBridgeProvider) ? With(new DesktopAppsBridgeProvider(Pi(), Log(), new InlineGameThread()), new DesktopBridge(Desktop()))
                 : With(new AlmanacBridgeProvider(Pi(), Log()), new AlmanacBridge(new FakeBridgeInvoker()));
             var arguments = method.GetParameters().Where(p => p.ParameterType != typeof(CancellationToken))
                 .Select(p => p.HasDefaultValue ? p.DefaultValue : p.ParameterType == typeof(string) ? "x" : Convert.ChangeType(1, p.ParameterType, System.Globalization.CultureInfo.InvariantCulture))

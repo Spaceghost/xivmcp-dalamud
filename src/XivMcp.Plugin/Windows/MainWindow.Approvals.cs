@@ -18,6 +18,8 @@ public sealed partial class MainWindow
     private string? sessionDraftSessionId;
     private bool sessionDraftChat;
     private bool openSessionPopup;
+    private bool scrollToPendingApprovals;
+    private string[]? approveAllSelection;
 
     /// <summary>Set by the plugin after construction (keeps the constructor unchanged).</summary>
     public ApprovalQueue? Approvals { get; set; }
@@ -29,6 +31,13 @@ public sealed partial class MainWindow
 
     private string ApprovalsTabLabel => Approvals is { PendingCount: > 0 and var n } ? $"{ApprovalsTab} ({n})###{ApprovalsTab}" : $"{ApprovalsTab}###{ApprovalsTab}";
 
+    /// <summary>Open the actual pending requests, not a remembered position in the action log.</summary>
+    public void OpenApprovals()
+    {
+        scrollToPendingApprovals = true;
+        OpenTab(ApprovalsTab);
+    }
+
     /// <summary>Countdown banner for every running approval session, with one-click revoke. Drawn in the header.</summary>
     private void DrawApprovalSessionBanner()
     {
@@ -39,7 +48,7 @@ public sealed partial class MainWindow
         {
             var left = session.Remaining(now);
             ImGui.TextColored(session.IncludeChat ? ImGuiColors.DalamudRed : ImGuiColors.DalamudOrange,
-                $"Approval session: {session.Describe()} runs Action{(session.IncludeChat ? " and Chat" : "")} calls without asking — {(int)left.TotalMinutes}:{left.Seconds:00} left");
+                ConfirmationService.ShowInvisible($"Approval session: {session.Describe()} runs Action{(session.IncludeChat ? " and Chat" : "")} calls without asking — {(int)left.TotalMinutes}:{left.Seconds:00} left"));
             ImGui.SameLine();
             if (ImGui.SmallButton($"Revoke##session-{session.Id}"))
                 sessions.Revoke(session.Id);
@@ -48,6 +57,11 @@ public sealed partial class MainWindow
 
     private void DrawApprovalsTab()
     {
+        if (scrollToPendingApprovals)
+        {
+            ImGui.SetScrollY(0);
+            scrollToPendingApprovals = false;
+        }
         if (Approvals is not { } queue)
         {
             ImGui.TextDisabled("The approval queue is not available.");
@@ -55,17 +69,22 @@ public sealed partial class MainWindow
         }
 
         if (!config.AllowAction)
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "The Action tier is off, so the queue is closed: new requests are refused and waiting ones were denied.");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "The Action tier is off: Action/Chat requests are refused. Approval-required UI requests can still run when the UI tier is enabled.");
         else if (!config.ConfirmActions)
-            ImGui.TextColored(ImGuiColors.DalamudOrange, "Confirmation is off: queued Action/Chat calls are approved and run as soon as they arrive.");
+            ImGui.TextColored(ImGuiColors.DalamudOrange, "Confirmation is off: permitted queued calls are approved and run as soon as they arrive.");
 
         var tickets = queue.Snapshot();
         var pending = tickets.Where(t => t.State == TicketState.Pending).ToArray();
         var now = DateTimeOffset.UtcNow;
 
         ImGui.BeginDisabled(pending.Length == 0);
-        if (ImGui.Button($"Approve all ({pending.Length})"))
-            queue.ApproveAll();
+        var approveAllClicked = ImGui.Button($"Approve all ({pending.Length})###approve-visible");
+        if (ImGui.IsItemActivated())
+            approveAllSelection = pending.Select(ticket => ticket.Id).ToArray();
+        if (approveAllClicked)
+            queue.ApproveMany(approveAllSelection ?? pending.Select(ticket => ticket.Id).ToArray());
+        if (ImGui.IsItemDeactivated())
+            approveAllSelection = null;
         ImGui.SameLine();
         if (ImGui.Button("Deny all"))
             queue.DenyAll();
@@ -73,14 +92,15 @@ public sealed partial class MainWindow
         ImGui.SameLine();
         if (ImGui.Button("Clear finished"))
             queue.ClearFinished();
-        HelpMarker("Approved tickets run one at a time, oldest approval first, with the normal checks and call timeout. " +
+        HelpMarker("Approve all applies only to requests shown when you pressed the button; later arrivals stay waiting. " +
+                   "Approved tickets run one at a time, oldest approval first, with the normal checks and call timeout. " +
                    "Tickets wait until you decide; they survive reloads and game restarts. A ticket that was running when the game closed is marked failed, never re-run.");
 
         ImGui.Spacing();
         if (pending.Length == 0)
         {
             ImGui.TextDisabled("Nothing is waiting for you.");
-            ImGui.TextWrapped("Agents call request_action to queue Action/Chat calls here while you are away.");
+            ImGui.TextWrapped("Agents call request_action to queue approval-required calls here while you are away.");
         }
 
         foreach (var ticket in pending)
@@ -126,7 +146,7 @@ public sealed partial class MainWindow
             ImGui.SameLine();
             ImGui.TextColored(ImGuiColors.DalamudYellow, entry.Tool);
             ImGui.SameLine();
-            ImGui.TextDisabled($"[{entry.Tier}, approval {entry.Approval}] {entry.Token ?? entry.Client ?? "(unnamed client)"}");
+            ImGui.TextDisabled(ConfirmationService.ShowInvisible($"[{entry.Tier}, approval {entry.Approval}] {entry.Token ?? entry.Client ?? "(unnamed client)"}"));
             ImGui.PushTextWrapPos(0);
             ImGui.TextUnformatted(ConfirmationService.ShowInvisible(entry.Error is { } error ? $"  {entry.Summary} - {error}" : "  " + entry.Summary));
             ImGui.PopTextWrapPos();
@@ -137,14 +157,14 @@ public sealed partial class MainWindow
     {
         var chat = ticket.Tier == ToolPermission.Chat;
         ImGui.Separator();
-        ImGui.TextColored(TierColor(ticket.Tier), chat ? "CHAT" : "ACTION");
+        ImGui.TextColored(TierColor(ticket.Tier), ticket.Permission == ToolPermission.Ui ? "UI" : chat ? "CHAT" : "ACTION");
         ImGui.SameLine();
         ImGui.TextColored(ImGuiColors.DalamudYellow, ticket.ToolName);
         ImGui.SameLine();
-        ImGui.TextDisabled($"from {ticket.ClientName ?? "(unnamed client)"} · {FormatAge(now - ticket.CreatedAt)} ago{(ticket.ExpiresAt is { } at ? $" · expires in {FormatAge(at - now)}" : "")}");
+        ImGui.TextDisabled(ConfirmationService.ShowInvisible($"from {ticket.ClientName ?? "(unnamed client)"} · {FormatAge(now - ticket.CreatedAt)} ago{(ticket.ExpiresAt is { } at ? $" · expires in {FormatAge(at - now)}" : "")}"));
         ImGui.PushTextWrapPos(0);
         if (ticket.Summary is { Length: > 0 } summary)
-            ImGui.TextUnformatted(summary);
+            ImGui.TextUnformatted(ConfirmationService.ShowInvisible(summary));
         ImGui.TextUnformatted(ConfirmationService.ShowInvisible(ticket.Reason));
         ImGui.PopTextWrapPos();
 
@@ -194,7 +214,7 @@ public sealed partial class MainWindow
             return;
         var minutes = ApprovalSessions?.Duration.TotalMinutes ?? ApprovalSessionService.DefaultMinutes;
         ImGui.TextUnformatted($"For {minutes:0} minutes, run Action calls from");
-        ImGui.TextColored(ImGuiColors.DalamudYellow, $"  {sessionDraftClient ?? "(unnamed client)"}");
+        ImGui.TextColored(ImGuiColors.DalamudYellow, ConfirmationService.ShowInvisible($"  {sessionDraftClient ?? "(unnamed client)"}"));
         ImGui.TextUnformatted("without asking (direct calls and queued tickets).");
         ImGui.TextDisabled("The client name is reported by the client itself. Tickets already waiting stay waiting.");
         ImGui.Checkbox("Also allow Chat: text OTHER PLAYERS can see", ref sessionDraftChat);
@@ -225,9 +245,9 @@ public sealed partial class MainWindow
         ImGui.SameLine(90);
         ImGui.TextUnformatted(ticket.ToolName);
         ImGui.SameLine();
-        ImGui.TextDisabled($"{ticket.ClientName ?? "(unnamed)"} · {ticket.DecidedBy ?? "?"} · {FormatAge(now - (ticket.CompletedAt ?? ticket.DecidedAt ?? ticket.CreatedAt))} ago");
+        ImGui.TextDisabled(ConfirmationService.ShowInvisible($"{ticket.ClientName ?? "(unnamed)"} · {ticket.DecidedBy ?? "?"} · {FormatAge(now - (ticket.CompletedAt ?? ticket.DecidedAt ?? ticket.CreatedAt))} ago"));
         if (ImGui.IsItemHovered())
-            Tooltip($"{ticket.Reason}{(ticket.Error is { } e ? "\n\n" + e : "")}");
+            Tooltip(ConfirmationService.ShowInvisible($"{ticket.Reason}{(ticket.Error is { } e ? "\n\n" + e : "")}"));
     }
 
     /// <summary>Settings: approval session length.</summary>

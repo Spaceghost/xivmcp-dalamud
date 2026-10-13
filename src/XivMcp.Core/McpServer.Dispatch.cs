@@ -358,7 +358,7 @@ public sealed partial class McpServer
         if (ToolGateError(tool, out var gateCode) is { } gateError)
             return ToolError(scope, gateError, gateCode);
 
-        if (!preApproved && RateLimitDelaySeconds(scope.AuthenticatedClient, scope.Session?.Id ?? scope.DetachedSessionId) is > 0 and var wait)
+        if (!preApproved && RateLimitDelaySeconds(scope.AuthenticatedClient, scope.Session?.Id ?? scope.DetachedSessionId, scope.ClientName) is > 0 and var wait)
             return ToolError(scope, $"Tool '{name}' was not run: rate limit reached ({Options.RateLimitPerMinute} calls per minute per client). Retry in {Math.Ceiling(wait):0} s.", McpErrorCodes.RateLimited, retryable: true, retryAfterSeconds: wait);
 
         var timeout = Options.CallTimeout > TimeSpan.Zero ? Options.CallTimeout : TimeSpan.FromSeconds(30);
@@ -648,7 +648,7 @@ public sealed partial class McpServer
     /// <summary>resources/read and prompts/get share the per-caller rate limit with tools/call; over it they fail as JSON-RPC errors.</summary>
     private void ThrowIfRateLimited(RequestScope scope)
     {
-        if (RateLimitDelaySeconds(scope.AuthenticatedClient, scope.Session?.Id ?? scope.DetachedSessionId) is > 0 and var wait)
+        if (RateLimitDelaySeconds(scope.AuthenticatedClient, scope.Session?.Id ?? scope.DetachedSessionId, scope.ClientName) is > 0 and var wait)
         {
             throw new McpProtocolException(JsonRpcCodes.RateLimited, $"Rate limit reached ({Options.RateLimitPerMinute} calls per minute per client). Retry in {Math.Ceiling(wait):0} s.",
                 new JsonObject { ["code"] = McpErrorCodes.RateLimited, ["retryAfterSeconds"] = Math.Round(wait, 2) });

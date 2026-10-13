@@ -156,8 +156,8 @@ public static class SheetJson
     private static IEnumerable<object> EnumerateSubrowsTyped<T>(ExcelModule module, Language language) where T : struct, IExcelSubrow<T>
     {
         foreach (var rows in module.GetSubrowSheet<T>(language))
-        foreach (var row in rows)
-            yield return row;
+            foreach (var row in rows)
+                yield return row;
     }
 
     public static uint RowIdOf(object row) => row switch

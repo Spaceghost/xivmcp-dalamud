@@ -70,8 +70,9 @@ A pending ticket never turns into a denial by waiting. The only timers are the c
 
 - **request_action** (Ui tier): `tool`, `arguments` (exactly as for `tools/call`), `reason` (one line shown to the
   player, max 300 chars), optional `resumeToken` (max 512 chars, returned verbatim) and optional `expiresInSeconds`
-  (30 s to 7 days). Returns the ticket at once. The target tool must be an Action or Chat tool that could run now
-  (category and tier enabled, arguments bind); Read and Ui tools are refused with "call it directly".
+  (30 s to 7 days). Returns the ticket at once. The target tool must be an Action/Chat tool or a Ui tool explicitly
+  requiring approval that could run now (category and tier enabled, arguments bind). Read tools and Ui tools that
+  do not require approval are refused with "call it directly".
 - **get_ticket** / **list_tickets** (Read tier; `list_tickets` filters `open` (default), `pending`, `final`, `all` and
   by `resumeToken`) and **cancel_ticket** (Ui tier; pending tickets only). Every tool and resource shows only the
   calling client's tickets (matched by the client-reported name and version).
@@ -86,12 +87,15 @@ A pending ticket never turns into a denial by waiting. The only timers are the c
   plugin unloaded is loaded as **failed** ("Interrupted … not retried"): its outcome is unknown, so it is never run twice.
 - Limits: 50 pending tickets per client, 200 in total, arguments up to 16 KB of JSON. Errors say which limit was hit
   and suggest `cancel_ticket`.
-- Switching the **Action** tier off denies every pending ticket and refuses new ones; switching **Chat** off denies
-  pending Chat-tier tickets. A ticket approved just before the tier went off fails instead of running.
+- Switching the **Action** tier off denies pending Action/Chat tickets and refuses new ones; switching **Chat** off
+  denies pending Chat-tier tickets. Approval-required Ui tickets depend on the Ui permission, not Action. Every
+  approved ticket still passes the runner's current tier/category/login checks before execution.
 - The player sees tickets in the XivMcp window's **Approvals** tab (the tab label carries the pending count): tool,
   tier, client, reason, age, expiry, the arguments (pretty-printed, invisible characters shown as `\uXXXX`), **Approve**,
-  **Deny**, **Approve all**, **Deny all**, **Clear finished**, and the recent results. The quest-tracker area is not used
-  yet; `ApprovalQueue.Changed`/`Snapshot()` are the hook for an objectives feature to show tickets there later.
+  **Deny**, **Approve all**, **Deny all**, **Clear finished**, and the recent results. **Approve all** captures the
+  displayed ticket IDs when the button is pressed; later arrivals stay pending, even if they arrive before release.
+  A read-only Duty List row can summarize pending requests and open Approvals at the top; it cannot approve them.
+  Worker events only invalidate this row, and its UI-thread refresh preserves changes arriving during a snapshot.
 
 ## Resume contract (for clients)
 
@@ -149,7 +153,8 @@ and ``space - _ . , : = / + @ # % ( ) [ ] { } ! ? ~ * ' "``. Matching is case-se
 normalization, so `/term selftest; /say hi`, `/term selftest\n/say hi`, `/term selftestX`, a leading space, fullwidth
 characters and invisible characters never match. A rule with no prefixes matches any arguments, except for
 `execute_command`, where it never matches. Calls that post chat need the rule's **Include Chat**. Read and Ui tools
-need no rule; they never prompt.
+that do not require approval need no rule; they never prompt. Approval-required Ui tools follow the same gate as
+other state-changing calls.
 
 Everything else from that client is prompted or queued as usual. Every auto-approved call is written to the activity
 feed (`policy/auto-approve`, tool, tier and the matching rule and prefix) and to `/xllog`; the call's arguments are not.
