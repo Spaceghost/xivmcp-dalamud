@@ -68,6 +68,12 @@ public class DalamudInternalsTests
         // Arguments passed positionally by SetEnabledAsync: (Guid workingPluginId, string internalName, bool state, bool apply) and (PluginLoadReason reason, ...).
         Assert.Equal("workingPluginId,internalName,state,apply", string.Join(",", Method("Profile.AddOrUpdateAsync").GetParameters().Select(p => p.Name)));
         Assert.Equal(typeof(PluginLoadReason), Method("LocalPlugin.LoadAsync").GetParameters()[0].ParameterType);
+        Assert.True(Assert.IsAssignableFrom<ConstructorInfo>(DalamudInternals.Resolve(dalamud,
+            DalamudInternals.Names.Single(n => n.Key == "RepoSettings.New"))).GetParameters().Length == 0);
+        foreach (var key in new[] { "RepoSettings.Url", "RepoSettings.IsEnabled", "Configuration.DoPluginTest" })
+            Assert.NotNull(Assert.IsAssignableFrom<PropertyInfo>(DalamudInternals.Resolve(dalamud, DalamudInternals.Names.Single(n => n.Key == key))).GetSetMethod(true));
+        Assert.True(typeof(Task).IsAssignableFrom(Method("PluginManager.InstallPluginAsync").ReturnType));
+        Assert.True(typeof(Task).IsAssignableFrom(Method("PluginManager.UpdateSinglePluginAsync").ReturnType));
         Assert.All(Method("LocalPlugin.LoadAsync").GetParameters().Skip(1), p => Assert.True(p.HasDefaultValue));
         Assert.All(Method("LocalPlugin.UnloadAsync").GetParameters(), p => Assert.True(p.HasDefaultValue));
     }
@@ -83,6 +89,7 @@ public class DalamudInternalsTests
         [
             DalamudInternals.RepositoryKeys, DalamudInternals.SafeModeKeys, DalamudInternals.PluginKeys, DalamudInternals.UpdatableKeys,
             DalamudInternals.ToggleKeys, DalamudInternals.ReloadKeys, DalamudInternals.DrawStatsKeys, DalamudInternals.FrameworkStatsKeys,
+            DalamudInternals.SetupKeys,
         ];
         foreach (var key in features.SelectMany(f => f))
             Assert.Contains(key, keys);

@@ -101,7 +101,7 @@ public static class PluginNameResolver
             .Select(p => p.InternalName).Take(5).ToList();
         var hint = near.Count > 0 ? $" Did you mean: {string.Join(", ", near)}?" : " Use list_plugins for the installed names.";
         throw McpToolException.WithCode(McpErrorCodes.NotFound,
-            $"No installed plugin is named '{text}'.{hint} This server never installs plugins: open_dalamud_window can put the installer in front of the player on a search.");
+            $"No installed plugin is named '{text}'.{hint} setup_plugins installs published plugins; open_dalamud_window can put the installer in front of the player on a search.");
     }
 
     private static List<int> Matches(IReadOnlyList<(string InternalName, string Name, bool IsLoaded)> plugins, Func<(string InternalName, string Name, bool IsLoaded), bool> predicate)
@@ -185,7 +185,7 @@ public static class PluginToggleRules
         if (facts.IsBanned)
             throw Blocked($"{facts.InternalName} is banned by Dalamud and cannot be loaded.");
         if (facts.IsOutdated && !facts.IsDev)
-            throw Blocked($"{facts.InternalName} is built for an older Dalamud API level and cannot be loaded until its author updates it. This server never updates plugins: open_dalamud_window (installer, updateablePlugins) shows the player what is available.");
+            throw Blocked($"{facts.InternalName} is built for an older Dalamud API level and cannot be loaded until its author updates it. setup_plugins can install a compatible update from the selected repository.");
         if (facts.IsOrphaned && !facts.IsLoaded)
             throw Blocked($"{facts.InternalName} is orphaned (its repository is gone) and Dalamud will not load it.");
         if (facts.WantingProfiles != 1 || !facts.SingleProfileIsDefault)

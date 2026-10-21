@@ -17,6 +17,7 @@ HUD family discovery and module snapshots have live smoke evidence. UI mutations
 
 ### Being built
 
+* Automatic plugin setup replaces manual installer handoffs: plan a repository and named plugins, register/enable its source and testing preferences, install/update declared same-repository dependencies, enable the plugins and verify loaded versions. setup_plugins returns a bounded progress operation with honest partial failure state; plan/status reads never mutate. add_plugin_repository now performs registration directly. Uses the existing owner-controlled Action/approval gate. Dev/duplicate installs, foreign sources, collection conflicts, bans, API mismatches and running MCP self replacement are preserved/refused. Host tests include the current Dalamud reference bindings; in-game installation acceptance is pending.
 * HUD discovery in development includes the new manual-only XivHud.Vitals module: readiness, sample-preview, panel-lock and screen-panel diagnostics without actor identities or combat values. Existing approved HUD controls support its explicit open/close/settings operations; original and world/native mode are rejected before IPC. Generated bridge and tool schemas include Vitals. Offline provider/resource/schema tests pass; no new in-game acceptance.
 
 ### Merged, not yet verified in game

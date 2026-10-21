@@ -1,6 +1,4 @@
-using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
-using Dalamud.Interface.ImGuiNotification;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using XivMcp.Core;
@@ -8,8 +6,8 @@ using XivMcp.Core;
 namespace XivMcp.Plugin.Providers.DalamudInfo;
 
 /// <summary>
-/// The Dalamud tools that change something. All of them go through the server's approval gate. None of them installs,
-/// updates or deletes a plugin, and none of them writes a repository list: see docs/HARD-LINES.md.
+/// Dalamud controls use the server's existing approval gate. Automatic setup delegates installation and
+/// repository configuration to reviewed Dalamud bindings; see docs/PLUGIN-SETUP.md.
 /// </summary>
 [McpProvider("dalamud")]
 public sealed class DalamudControlProvider
@@ -17,12 +15,12 @@ public sealed class DalamudControlProvider
     private static readonly TimeSpan LoadTimeout = TimeSpan.FromSeconds(90);
 
     private readonly IDalamudPluginInterface pluginInterface;
-    private readonly INotificationManager notifications;
+    private readonly IGameThread game;
 
-    public DalamudControlProvider(IDalamudPluginInterface pluginInterface, INotificationManager notifications)
+    public DalamudControlProvider(IDalamudPluginInterface pluginInterface, IGameThread game)
     {
         this.pluginInterface = pluginInterface;
-        this.notifications = notifications;
+        this.game = game;
     }
 
     [McpTool("open_plugin_ui",
@@ -66,7 +64,7 @@ public sealed class DalamudControlProvider
         Title = "Open the plugin installer or Dalamud settings",
         Description =
             "Opens one of Dalamud's own windows in front of the player: window='installer' (the plugin installer; tab is allPlugins, installedPlugins, updateablePlugins, changelogs or dalamudChangelogs) or window='settings' (Dalamud settings; tab is general, lookAndFeel, autoUpdates, serverInfoBar, badge, experimental or about), optionally with searchText typed into that window's search box. " +
-            "This is the whole answer to \"install plugin X\" or \"update my plugins\": this server never installs, updates or removes a plugin, it puts the installer on that search and the player clicks. Returns opened (what Dalamud reported), window, tab and searchText. Fails with invalid_arguments for an unknown window or tab.",
+            "For automatic installation and updates use setup_plugins; this tool only opens the selected window. Returns opened (what Dalamud reported), window, tab and searchText. Fails with invalid_arguments for an unknown window or tab.",
         Permission = ToolPermission.Ui, RequiresApproval = true, RequiresLogin = false,
         ApprovalSummary = "Open Dalamud's {window} window on tab {tab}, searching for: {searchText}")]
     public OpenDalamudWindowResult OpenDalamudWindow(
@@ -91,7 +89,7 @@ public sealed class DalamudControlProvider
         Description =
             "Enables (loads) or disables (unloads) an INSTALLED Dalamud plugin and records the choice the way the plugin installer's toggle does, so it persists across restarts: disabling unloads the plugin and then marks it not wanted in Dalamud's default plugin collection; enabling marks it wanted and then loads it. plugin is the internal name from list_plugins. " +
             "Returns internalName, enabled (what was asked), changed (false when it already was in that state), state and loaded afterwards. There is no public Dalamud API for this: it calls the same internal methods the installer calls, and fails with unavailable when this Dalamud build does not expose them, when Dalamud itself would grey the toggle out (safe mode, a banned/outdated/orphaned plugin, a load in progress, a plugin managed by a non-default collection), or when the plugin throws while loading (the message says why; read_plugin_log has the rest). " +
-            "Refused: disabling this MCP server's own plugin (the connection would drop mid-call; the player can do it in /xlplugins). It never installs or updates anything: an outdated plugin stays outdated, and a plugin that is not installed is not_found (open_dalamud_window puts the installer on a search instead). Disabling is the destructive direction: whatever the plugin was doing stops.",
+            "Refused: disabling this MCP server's own plugin (the connection would drop mid-call; the player can do it in /xlplugins). It never installs or updates anything: an outdated plugin stays outdated, and a plugin that is not installed is not_found; setup_plugins handles installation and updates. Disabling is the destructive direction: whatever the plugin was doing stops.",
         Permission = ToolPermission.Action, Destructive = true, Idempotent = true, GameThread = false, RequiresLogin = false,
         ApprovalSummary = "Set Dalamud plugin {plugin} to enabled = {enabled} (loads or unloads it now and remembers the choice).")]
     public async Task<PluginStateResult> SetPluginEnabled(
@@ -145,55 +143,30 @@ public sealed class DalamudControlProvider
     }
 
     [McpTool("add_plugin_repository",
-        Sources = ["dalamud:IDalamudPluginInterface.OpenDalamudSettingsTo", "dalamud:internal.DalamudConfiguration"],
-        Title = "Help the player add a custom plugin repository",
-        Description =
-            "ASSISTED, not automatic: a custom repository can ship code that runs inside the game, so adding one is the player's supply-chain decision and this tool never writes Dalamud's configuration. After approval it (1) opens Dalamud settings on the Experimental tab, where custom repositories live, (2) copies the URL to the clipboard and (3) shows a notification telling the player to paste it into the list, press +, and save. " +
-            "The result always says added=false: nothing has been added when the call returns, and only the player can finish it; check list_plugin_repositories afterwards. alreadyConfigured=true (and nothing is opened or copied) when the URL is already in the list. " +
-            "The url must be https, at most 300 printable ASCII characters, parse as an absolute URL with a full host name, and carry no credentials (user:password@); otherwise invalid_arguments. After the player has added it, open_dalamud_window (installer, with searchText) puts the plugin in front of them.",
-        Permission = ToolPermission.Action, Destructive = false, Idempotent = true, OpenWorld = false, RequiresLogin = false,
-        ApprovalSummary = "Open Dalamud settings (Experimental tab) and copy this custom plugin repository URL to your clipboard so YOU can paste and save it; nothing is added automatically: {url}")]
-    public AddRepositoryResult AddPluginRepository(
-        [McpParam("The repository's pluginmaster URL (https only).")] string url)
+        Sources = ["dalamud:internal.DalamudConfiguration", "dalamud:internal.PluginManager"],
+        Title = "Register a plugin repository automatically",
+        Description = "Register and enable an explicit HTTPS custom plugin repository, save through Dalamud's configuration queue and refresh its native repository catalogue. No settings window, clipboard or manual paste/save steps. This adds a source of code that may run inside the game; it does not install any plugin. Existing repositories are preserved. Returns added/alreadyConfigured, enabled state and a note; use setup_plugins to install and enable exact plugins with dependencies in one operation. Requires the reviewed Dalamud bindings and a usable default collection. The legacy settingsOpened/copiedToClipboard fields remain false.",
+        Permission = ToolPermission.Action, RequiresApproval = true, Destructive = false, Idempotent = true,
+        GameThread = false, RequiresLogin = false,
+        ApprovalSummary = "Register and enable this custom plugin repository in Dalamud and refresh its catalogue: {url}. It can provide executable plugin code.")]
+    public async Task<AddRepositoryResult> AddPluginRepository(
+        [McpParam("Explicit HTTPS pluginmaster URL.")] string url, ToolContext? ctx = null)
     {
-        var clean = RepositoryUrlValidator.Validate(url);
-        var existing = DalamudInternals.GetRepositories()?.FirstOrDefault(r => string.Equals(r.Url.Trim(), clean, StringComparison.OrdinalIgnoreCase));
-        if (existing is not null)
+        var clean = new Uri(RepositoryUrlValidator.Validate(url)).AbsoluteUri;
+        if (new Uri(clean).Fragment.Length > 0) throw McpToolException.WithCode(McpErrorCodes.InvalidArguments, "Repository URLs must not contain a fragment.");
+        var token = ctx?.CancellationToken ?? CancellationToken.None;
+        var existed = await game.InvokeAsync(() =>
         {
-            return new AddRepositoryResult(false, true, existing.IsEnabled, false, false, clean,
-                existing.IsEnabled ? "That repository is already in Dalamud's custom repository list and enabled. Nothing was opened." : "That repository is already in Dalamud's custom repository list but disabled; the player can tick it in Dalamud settings, Experimental tab. Nothing was opened.");
-        }
-
-        var opened = pluginInterface.OpenDalamudSettingsTo(SettingsOpenKind.Experimental, null);
-        var copied = false;
-        try
-        {
-            ImGui.SetClipboardText(clean);
-            copied = true;
-        }
-        catch
-        {
-            // The URL is still in the notification and the result.
-        }
-
-        try
-        {
-            notifications.AddNotification(new Notification
-            {
-                Title = "Custom plugin repository",
-                Content = $"{(copied ? "Copied to your clipboard" : "Requested")}: {clean}\nIf you trust it: Dalamud settings > Experimental > Custom Plugin Repositories, paste it into the empty row, press +, then save. Nothing has been added for you.",
-                Type = NotificationType.Info,
-                Minimized = false,
-                InitialDuration = TimeSpan.FromSeconds(30),
-            });
-        }
-        catch
-        {
-            // Informational only.
-        }
-
-        return new AddRepositoryResult(false, false, null, opened, copied, clean,
-            "Nothing was added. Dalamud settings is open on the Experimental tab" + (copied ? " and the URL is on the clipboard" : "") + ": the player has to paste it under Custom Plugin Repositories, press +, and save. Check list_plugin_repositories afterwards.");
+            var existing = DalamudInternals.GetRepositories()?.Any(r => string.Equals(r.Url, clean, StringComparison.Ordinal)) == true;
+            DalamudInternals.ConfigureSetupRepository(new(clean, "stable", [], false, "Repository registration only."));
+            return existing;
+        }, token).ConfigureAwait(false);
+        await Task.Run(DalamudInternals.RefreshSetupRepositoriesAsync, CancellationToken.None).ConfigureAwait(false);
+        var state = await game.InvokeAsync(() => DalamudInternals.SetupRepositoryState(clean), token).ConfigureAwait(false);
+        if (state != "Success") throw McpToolException.WithCode(McpErrorCodes.Unavailable,
+            $"Repository was saved and enabled, but its native catalogue refresh is {state}. Inspect list_plugin_repositories before retrying.");
+        return new(!existed, existed, true, false, false, clean,
+            "Repository registered and enabled; the native refresh finished. No manual setup steps. setup_plugins installs selected plugins and verifies their loaded state.");
     }
 
     private static string CamelCase(string name) => name.Length == 0 ? name : char.ToLowerInvariant(name[0]) + name[1..];

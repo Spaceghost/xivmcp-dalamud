@@ -17,10 +17,21 @@ owner's own mods**. It does not play the game.
 | Packet injection, packet editing, server-protocol tampering | Every tool works through the client's own UI, commands and memory reads, the way a person at the keyboard would, or through another plugin's published IPC. |
 | Reading other players' private data | Tools return what the client already shows on screen (names, jobs, party list, nearby objects). Nothing is derived, stored about other players, or sent anywhere. |
 | Circumventing anti-cheat or any limit the Terms of Service enforce | Not negotiable. |
-| Installing or updating plugins silently | Dalamud tools can *open* the installer on a search, or put a repository URL in front of the player. The player clicks. |
+
 
 These are not settings. The approval switch below does not unlock any of them, no permission tier does, and a
 request for one of them gets the `refused` error code, not a workaround.
+
+## Automatic plugin setup
+
+The owner explicitly requested automatic setup of plugins we create. `setup_plugins` can
+register an explicit repository, configure its testing channel, install/update named plugins
+and declared dependencies, enable them and verify loaded versions. `add_plugin_repository`
+now performs registration directly. These use the existing Action permission and the same
+owner-controlled approval switch as other changes; no manual installer/settings clicks are
+required. Reads only plan or observe. Safe mode, bans, API compatibility, collection ownership,
+source identity and existing development installations remain enforced. Running MCP self
+replacement belongs to its external host deployment. See [automatic setup](PLUGIN-SETUP.md).
 
 ## The approval switch
 

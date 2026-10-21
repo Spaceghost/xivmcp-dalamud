@@ -126,7 +126,7 @@ public class DalamudToolLogicTests
         var ex = Assert.Throws<McpToolException>(() => PluginNameResolver.Resolve(Installed, "Some"));
         Assert.Equal(McpErrorCodes.NotFound, ex.Code);
         Assert.Contains("SomePlugin", ex.Message, StringComparison.Ordinal);
-        Assert.Contains("never installs", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("setup_plugins", ex.Message, StringComparison.Ordinal);
 
         Assert.Equal(McpErrorCodes.NotFound, Code(() => PluginNameResolver.Resolve(Installed, "Nothing Like It")));
         Assert.Equal(McpErrorCodes.InvalidArguments, Code(() => PluginNameResolver.Resolve(Installed, "  ")));

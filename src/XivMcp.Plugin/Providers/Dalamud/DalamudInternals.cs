@@ -29,7 +29,7 @@ internal sealed record InternalToggleContext(bool SafeMode, bool ProfilesBusy, i
 /// renames something fails CI. At run time a missing name makes the feature return null and the tool answer
 /// <c>unavailable</c>; nothing here throws for a missing member.
 /// </summary>
-internal static class DalamudInternals
+internal static partial class DalamudInternals
 {
     private const string ServiceT = "Dalamud.Service`1";
     private const string Configuration = "Dalamud.Configuration.Internal.DalamudConfiguration";
@@ -95,6 +95,7 @@ internal static class DalamudInternals
 
         new("Framework.StatsEnabled", Framework, "StatsEnabled", IsStatic: true),
         new("Framework.StatsHistory", Framework, "StatsHistory", IsStatic: true),
+        .. SetupNames,
     ];
 
     public static readonly string[] RepositoryKeys = ["Service.GetNullable", "Configuration", "Configuration.ThirdRepoList", "RepoSettings.Url", "RepoSettings.IsEnabled"];
@@ -146,6 +147,9 @@ internal static class DalamudInternals
                 var getter = property?.GetGetMethod(nonPublic: true);
                 return getter is not null && getter.IsStatic == name.IsStatic ? property : null;
             }
+
+            if (name.Member == ".ctor" && !name.IsStatic)
+                return type.GetConstructors(Any).SingleOrDefault(c => c.GetParameters().Select(static p => p.ParameterType.Name).SequenceEqual(name.Parameters, StringComparer.Ordinal));
 
             return type.GetMethods(Any).SingleOrDefault(m =>
                 m.Name == name.Member && m.IsStatic == name.IsStatic &&
