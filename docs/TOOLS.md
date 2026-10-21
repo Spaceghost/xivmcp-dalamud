@@ -317,7 +317,7 @@ Reads one bridge's read-only IPC gates and returns each as {field, description, 
 
 | Argument | Type | Required | Description |
 | --- | --- | --- | --- |
-| `bridge` | string ("penumbra", "glamourer", "mare", "lifestream", "autoretainer", "artisan", "deliveroo", "ghostty", "xivdesktop", "almanac", "umbra", "xivhud", "xivhud_journal", "xivhud_character", "xivpiano", "xivlantern", "xivwayfinder", "xivrug") | yes | Bridge key from list_bridges. |
+| `bridge` | string ("penumbra", "glamourer", "mare", "lifestream", "autoretainer", "artisan", "deliveroo", "ghostty", "xivdesktop", "almanac", "umbra", "xivhud", "xivhud_journal", "xivhud_character", "xivhud_vitals", "xivpiano", "xivlantern", "xivwayfinder", "xivrug") | yes | Bridge key from list_bridges. |
 | `limit` | integer | no | Maximum entries kept from any list-shaped value (1-500). |
 
 ### `get_desktop_panels`
@@ -340,33 +340,33 @@ XivDesktop's health: ghostty (launching is possible), ghosttyStatus, apps (catal
 
 Read tier · hints: readOnly, idempotent · login not required · pre-game: no
 
-**Sources:** `dalamud:InstalledPlugins`, `ipc:XivHud.v1.Call`, `ipc:XivHud.Journal.v1.Call`, `ipc:XivHud.Character.v1.Call`
+**Sources:** `dalamud:InstalledPlugins`, `ipc:XivHud.v1.Call`, `ipc:XivHud.Journal.v1.Call`, `ipc:XivHud.Character.v1.Call`, `ipc:XivHud.Vitals.v1.Call`
 
-Read all XivHud modules independently: installed/loaded versions, versioned IPC capabilities, native HUD requested/applied visibility, Journal selection/search/bookmarks, Character page, data readiness, requested versus actual screen/native-frame/world hosting, focus and controller status. Missing or old modules return their own errors without hiding healthy modules. Windowing is a bundled shared library, not a separately installed plugin. Character and quest facts remain available through get_character_sheet/get_quest_journal. Reads neither open windows nor capture controller input; snapshots include observedAt.
+Read all XivHud modules independently: installed/loaded versions, versioned IPC capabilities, native HUD requested/applied visibility, Journal selection/search/bookmarks, Character page, passive Vitals preview/lock/panel diagnostics, data readiness, requested versus actual screen/native-frame/world hosting, focus and controller status. Missing or old modules return their own errors without hiding healthy modules. Windowing is a bundled shared library, not a separately installed plugin. Character and quest facts remain available through get_character_sheet/get_quest_journal. Reads neither open windows nor capture controller input; snapshots include observedAt.
 
 ### `get_hud_module_status`
 
 Read tier · hints: readOnly, idempotent · login not required · pre-game: no
 
-**Sources:** `ipc:XivHud.v1.Call`, `ipc:XivHud.Journal.v1.Call`, `ipc:XivHud.Character.v1.Call`
+**Sources:** `ipc:XivHud.v1.Call`, `ipc:XivHud.Journal.v1.Call`, `ipc:XivHud.Character.v1.Call`, `ipc:XivHud.Vitals.v1.Call`
 
 Read one XivHud module's capabilities and immutable state snapshot, including window hosting, UI selection, controller focus and data errors. Returns an error field for an absent, unloaded or incompatible module. Does not open its UI.
 
 | Argument | Type | Required | Description |
 | --- | --- | --- | --- |
-| `module` | string ("hud", "journal", "character") | yes | HUD module. |
+| `module` | string ("hud", "journal", "character", "vitals") | yes | HUD module. |
 
 ### `get_hud_request`
 
 Read tier · hints: readOnly, idempotent · login not required · pre-game: no
 
-**Sources:** `ipc:XivHud.v1.Call#request.status`, `ipc:XivHud.Journal.v1.Call#request.status`, `ipc:XivHud.Character.v1.Call#request.status`
+**Sources:** `ipc:XivHud.v1.Call#request.status`, `ipc:XivHud.Journal.v1.Call#request.status`, `ipc:XivHud.Character.v1.Call#request.status`, `ipc:XivHud.Vitals.v1.Call#request.status`
 
 Poll a HUD module request by requestId. States: queued, applied, refused (with error). Keeps the latest 64 completed results until plugin reload; not found does not prove an operation failed. Check the module snapshot before retrying. Applied confirms module processing; actual host presentation is reported separately.
 
 | Argument | Type | Required | Description |
 | --- | --- | --- | --- |
-| `module` | string ("hud", "journal", "character") | yes | Originating module. |
+| `module` | string ("hud", "journal", "character", "vitals") | yes | Originating module. |
 | `requestId` | string | yes | requestId returned by a HUD change. |
 
 ### `get_terminal_capture_status`
@@ -645,13 +645,13 @@ Action tier · hints: idempotent · login not required · pre-game: no
 
 **Approval:** Apply {action} to the {module} HUD window, with mode {mode} and placement {placement}.
 
-**Sources:** `ipc:XivHud.v1.Call`, `ipc:XivHud.Journal.v1.Call`, `ipc:XivHud.Character.v1.Call`
+**Sources:** `ipc:XivHud.v1.Call`, `ipc:XivHud.Journal.v1.Call`, `ipc:XivHud.Character.v1.Call`, `ipc:XivHud.Vitals.v1.Call`
 
-Explicit HUD UI operation: open, close, settings, original, or mode. hud supports settings/close only; Journal/Character support every operation. mode selects screen, native_frame (KamiToolKit), or world (optional Ghostty) and opens the module. World placement is Hud, Companion, World or Ground. Screen recovers the ordinary UI when an optional host fails. original opens the game's own window and closes the replacement. No synthetic key or controller input, no automatic gear changes. Poll get_hud_request, then read actual hosting state.
+Explicit HUD UI operation: open, close, settings, original, or mode. hud supports settings/close only; Journal/Character support every operation; Vitals supports open/close/settings only and does not change native HUD visibility. mode selects screen, native_frame (KamiToolKit), or world (optional Ghostty) and opens the module. World placement is Hud, Companion, World or Ground. Screen recovers the ordinary UI when an optional host fails. original opens the game's own window and closes the replacement. No synthetic key or controller input, no automatic gear changes. Poll get_hud_request, then read actual hosting state.
 
 | Argument | Type | Required | Description |
 | --- | --- | --- | --- |
-| `module` | string ("hud", "journal", "character") | yes | HUD module. |
+| `module` | string ("hud", "journal", "character", "vitals") | yes | HUD module. |
 | `action` | string ("open", "close", "settings", "original", "mode") | yes | Explicit operation. |
 | `mode` | string ("screen", "native_frame", "world") | no | Required only for action=mode. |
 | `placement` | string ("Hud", "Companion", "World", "Ground") | no | Optional only for world mode. |

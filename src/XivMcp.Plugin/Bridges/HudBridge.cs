@@ -7,15 +7,15 @@ namespace XivMcp.Plugin.Bridges;
 /// <summary>Versioned HUD IPC without a HUD assembly dependency. Reads never invoke changes.</summary>
 public sealed class HudBridge(IBridgeInvoker invoker)
 {
-    public static readonly string[] Modules = ["hud", "journal", "character"];
+    public static readonly string[] Modules = ["hud", "journal", "character", "vitals"];
     public static string Key(string module) => module switch
     {
-        "hud" => "xivhud", "journal" => "xivhud_journal", "character" => "xivhud_character",
-        _ => throw McpToolException.WithCode(McpErrorCodes.InvalidArguments, "module must be hud, journal, or character."),
+        "hud" => "xivhud", "journal" => "xivhud_journal", "character" => "xivhud_character", "vitals" => "xivhud_vitals",
+        _ => throw McpToolException.WithCode(McpErrorCodes.InvalidArguments, "module must be hud, journal, character, or vitals."),
     };
     public static string Gate(string module) => module switch
     {
-        "hud" => "XivHud.v1.Call", "journal" => "XivHud.Journal.v1.Call", "character" => "XivHud.Character.v1.Call",
+        "hud" => "XivHud.v1.Call", "journal" => "XivHud.Journal.v1.Call", "character" => "XivHud.Character.v1.Call", "vitals" => "XivHud.Vitals.v1.Call",
         _ => throw McpToolException.WithCode(McpErrorCodes.InvalidArguments, "Unknown HUD module."),
     };
 

@@ -22,7 +22,7 @@ shows server status and the agent board.
 
 ## HUD family
 
-Read `get_hud_family_status` or `ffxiv://hud` for independent HUD, Journal and Character discovery, capabilities, hosting and controller diagnostics. Six approved UI tools use bounded owner-thread requests; poll `get_hud_request` and inspect actual hosting before claiming success. [HUD integration and recovery](docs/HUD.md) explains optional dependencies and validation limits.
+Read `get_hud_family_status` or `ffxiv://hud` for independent HUD, Journal, Character and Vitals discovery, capabilities, hosting and controller diagnostics. Six approved UI tools use bounded owner-thread requests; poll `get_hud_request` and inspect actual hosting before claiming success. [HUD integration and recovery](docs/HUD.md) explains optional dependencies and validation limits.
 
 ## How it fits together
 
@@ -339,7 +339,7 @@ Behaviour in game is unverified unless stated elsewhere.
 | `get_bridge_state` | Read | bridges | no | — | — | Reads one bridge's read-only IPC gates and returns each as {field, description, value, error}: for Penumbra the enabled state, mod list and collections; for Glamourer the saved design list; for Lifestream/AutoRetainer… |
 | `get_desktop_panels` | Read | bridges | no | — | — | What the player currently sees in XivDesktop: the launcher (open, search text, view, category, page, selected and visible app ids), favourites in order, whether the palette is open and the assistant's state (summoned,… |
 | `get_desktop_status` | Read | bridges | no | — | — | XivDesktop's health: ghostty (launching is possible), ghosttyStatus, apps (catalogue size), scanning, scannedAt, lastLaunch, lastError, summary, plus apiVersion (null until XivDesktop offers an ApiVersion gate). |
-| `get_hud_family_status` | Read | bridges | no | — | — | Read all XivHud modules independently: installed/loaded versions, versioned IPC capabilities, native HUD requested/applied visibility, Journal selection/search/bookmarks, Character page, data readiness, requested vers… |
+| `get_hud_family_status` | Read | bridges | no | — | — | Read all XivHud modules independently: installed/loaded versions, versioned IPC capabilities, native HUD requested/applied visibility, Journal selection/search/bookmarks, Character page, passive Vitals preview/lock/pa… |
 | `get_hud_module_status` | Read | bridges | no | — | — | Read one XivHud module's capabilities and immutable state snapshot, including window hosting, UI selection, controller focus and data errors. |
 | `get_hud_request` | Read | bridges | no | — | — | Poll a HUD module request by requestId. |
 | `get_terminal_capture_status` | Read | bridges | no | — | — | Whether GhosttyDalamud is recording, and its last screenshot or clip (kind, path, size, time, error). |
@@ -365,7 +365,7 @@ Behaviour in game is unverified unless stated elsewhere.
 | `capture_terminal_clip` | Action | bridges | yes | yes | — | Asks GhosttyDalamud to record a short clip (1-30 seconds, gif or mp4) of the game frame, or of the focused panel only, optionally with the game's own UI hidden. |
 | `capture_terminal_screenshot` | Action | bridges | yes | yes | — | Asks GhosttyDalamud for a PNG of the frame the game just drew, including its world panels: target full (the whole frame) or panel (just the focused terminal's window); clean=true hides the game's own UI for that frame. |
 | `close_terminal_panel` | Action | bridges | yes | yes | — | Closes a panel as its close button does (panel.close): a terminal's shell and every program in it END, a remote window's stream stops, an adopted plugin window goes back to its plugin and the chat back to the game. |
-| `control_hud_window` | Action | bridges | no | yes | — | Explicit HUD UI operation: open, close, settings, original, or mode. hud supports settings/close only; Journal/Character support every operation. mode selects screen, native_frame (KamiToolKit), or world (optional Gho… |
+| `control_hud_window` | Action | bridges | no | yes | — | Explicit HUD UI operation: open, close, settings, original, or mode. hud supports settings/close only; Journal/Character support every operation; Vitals supports open/close/settings only and does not change native HUD… |
 | `desktop_command` | Action | bridges | no | yes | — | Acts on the host desktop through XivDesktop. method launch starts an application (argument: the app id or a search text); method window sends a window action (argument: JSON such as {"action":"focus","id":12} — action… |
 | `desktop_window_action` | Action | bridges | no | yes | — | One action on a desktop window panel: focus, close (closes the window's stream and panel), pet (make it a pet), pin (pin it where the character stands), toggle (pet ↔ pin in place), place (needs pin, as /term pin take… |
 | `focus_terminal_panel` | Action | bridges | yes | yes | — | Gives a panel the keyboard and brings it forward (panel.focus): a hidden panel is shown, a dropdown tab opens the dropdown, a minimized terminal is restored. |
@@ -491,7 +491,7 @@ Resources and templates follow the Read tier and their category.
 | --- | --- | --- | --- |
 | `ffxiv://tickets` | approvals | no | Your approval tickets (same shape as list_tickets with state all). |
 | `ffxiv://tickets/{id}` | approvals | no | One of your approval tickets (same shape as get_ticket). |
-| `ffxiv://hud` | bridges | no | On-demand snapshot of the HUD host, Journal and Character, including optional hosting and recovery commands. |
+| `ffxiv://hud` | bridges | no | On-demand snapshot of the HUD host, Journal, Character and Vitals, including optional hosting and recovery commands. |
 | `ffxiv://player` | character | yes | Same JSON as the get_player tool: the logged-in character's identity, job, level, HP/MP, position, statuses. |
 | `ffxiv://target` | character | yes | Same JSON as get_target (target, target of target, soft, focus, mouseover). |
 | `ffxiv://chat/recent` | chat | no | The newest 100 captured chat lines (oldest first) in the same shape as read_chat, excluding private tells and battle-log lines. |

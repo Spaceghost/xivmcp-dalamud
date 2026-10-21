@@ -10,6 +10,35 @@ namespace XivMcp.Plugin.Tests;
 
 public class HudBridgeTests
 {
+    [Fact]
+    public void VitalsDiscoveryUsesItsOwnGateAndReadCallsOnly()
+    {
+        var fake = Fake("vitals", ["window.open", "window.close", "window.settings"]);
+        var module = new HudProvider(new HudBridge(fake)).Module("vitals");
+        Assert.Null(module.Error);
+        Assert.Equal("xivhud_vitals", module.Plugin!.Key);
+        Assert.All(fake.Calls, c =>
+        {
+            Assert.Equal("XivHud.Vitals.v1.Call", c.Gate);
+            Assert.Contains(JsonDocument.Parse(c.Argument!).RootElement.GetProperty("method").GetString(), ReadMethods);
+        });
+    }
+
+    [Theory]
+    [InlineData("open")]
+    [InlineData("close")]
+    [InlineData("settings")]
+    public void VitalsUiControlsRemainExplicitCapabilityCheckedRequests(string action)
+    {
+        var fake = Fake("vitals", ["window.open", "window.close", "window.settings"]);
+        var result = new HudProvider(new HudBridge(fake)).Control("vitals", action);
+        Assert.Equal("queued", result.GetProperty("state").GetString());
+        Assert.Equal(2, fake.Calls.Count);
+        var command = JsonDocument.Parse(fake.Calls.Last().Argument!).RootElement;
+        Assert.Equal("window." + action, command.GetProperty("method").GetString());
+        Assert.Empty(command.GetProperty("params").EnumerateObject());
+    }
+
     private static readonly string[] ReadMethods = ["api.version", "status"];
     private static FakeBridgeInvoker Fake(string module, string[]? methods = null)
     {
@@ -35,6 +64,7 @@ public class HudBridgeTests
         Assert.Null(family.Modules.Single(m => m.Module == "journal").Error);
         Assert.NotNull(family.Modules.Single(m => m.Module == "character").Error);
         Assert.NotNull(family.Modules.Single(m => m.Module == "hud").Error);
+        Assert.NotNull(family.Modules.Single(m => m.Module == "vitals").Error);
         Assert.All(fake.Calls, c => Assert.Contains(JsonDocument.Parse(c.Argument!).RootElement.GetProperty("method").GetString(), ReadMethods));
     }
 
@@ -53,6 +83,9 @@ public class HudBridgeTests
 
     [Theory]
     [InlineData("hud", "open", "", "")]
+    [InlineData("vitals", "mode", "screen", "")]
+    [InlineData("vitals", "mode", "world", "Hud")]
+    [InlineData("vitals", "original", "", "")]
     [InlineData("journal", "toggle", "", "")]
     [InlineData("character", "mode", "screen", "Hud")]
     [InlineData("character", "close", "world", "")]
@@ -126,7 +159,7 @@ public class HudBridgeTests
         Assert.False(json.RootElement.TryGetProperty("error", out _));
         var text = json.RootElement.GetProperty("result").GetProperty("contents")[0].GetProperty("text").GetString()!;
         using var family = JsonDocument.Parse(text);
-        Assert.Equal(3, family.RootElement.GetProperty("modules").GetArrayLength());
+        Assert.Equal(4, family.RootElement.GetProperty("modules").GetArrayLength());
         Assert.NotEmpty(fake.Calls);
         Assert.All(fake.Calls, c => Assert.Contains(JsonDocument.Parse(c.Argument!).RootElement.GetProperty("method").GetString(), ReadMethods));
     }

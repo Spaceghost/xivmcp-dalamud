@@ -15,6 +15,10 @@ Statuses mean exactly what they mean in the What's new view in game:
 
 HUD family discovery and module snapshots have live smoke evidence. UI mutations remain unverified; the resource login fix is host-tested.
 
+### Being built
+
+* HUD discovery in development includes the new manual-only XivHud.Vitals module: readiness, sample-preview, panel-lock and screen-panel diagnostics without actor identities or combat values. Existing approved HUD controls support its explicit open/close/settings operations; original and world/native mode are rejected before IPC. Generated bridge and tool schemas include Vitals. Offline provider/resource/schema tests pass; no new in-game acceptance.
+
 ### Merged, not yet verified in game
 
 * Legacy SSE reconnects attach to their session before response headers become visible, preventing an older delayed connection from replacing the newest one. The release check exposed the ordering race; repeated real HTTP reconnects now verify prompt replacement and immediate notification delivery.
