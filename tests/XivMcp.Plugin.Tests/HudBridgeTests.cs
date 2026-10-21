@@ -39,6 +39,43 @@ public class HudBridgeTests
         Assert.Empty(command.GetProperty("params").EnumerateObject());
     }
 
+    [Theory]
+    [InlineData("tracked", 1, true, true)]
+    [InlineData("bookmarks", 5, false, false)]
+    public void TrackerPreferencesUseAdvertisedJournalCapability(string filter, int limit, bool enabled, bool locked)
+    {
+        var fake = Fake("journal", ["journal.tracker"]);
+        var result = new HudProvider(new HudBridge(fake)).Tracker(enabled, locked, filter, limit);
+        Assert.Equal("queued", result.GetProperty("state").GetString());
+        var command = JsonDocument.Parse(fake.Calls.Last().Argument!).RootElement;
+        Assert.Equal("journal.tracker", command.GetProperty("method").GetString());
+        var p = command.GetProperty("params");
+        Assert.Equal(enabled, p.GetProperty("enabled").GetBoolean());
+        Assert.Equal(locked, p.GetProperty("locked").GetBoolean());
+        Assert.Equal(filter, p.GetProperty("filter").GetString());
+        Assert.Equal(limit, p.GetProperty("limit").GetInt32());
+        Assert.False(p.TryGetProperty("questId", out _));
+    }
+
+    [Theory]
+    [InlineData("all", 3)]
+    [InlineData("tracked", 0)]
+    [InlineData("bookmarks", 6)]
+    public void InvalidTrackerPreferencesNeverReachIpc(string filter, int limit)
+    {
+        var fake = Fake("journal", ["journal.tracker"]);
+        Assert.Throws<McpToolException>(() => new HudProvider(new HudBridge(fake)).Tracker(true, true, filter, limit));
+        Assert.Empty(fake.Calls);
+    }
+
+    [Fact]
+    public void OldJournalDoesNotReceiveUnsupportedTrackerCommands()
+    {
+        var fake = Fake("journal", ["journal.select"]);
+        Assert.Throws<McpToolException>(() => new HudProvider(new HudBridge(fake)).Tracker(true));
+        Assert.Single(fake.Calls);
+    }
+
     private static readonly string[] ReadMethods = ["api.version", "status"];
     private static FakeBridgeInvoker Fake(string module, string[]? methods = null)
     {
@@ -122,7 +159,7 @@ public class HudBridgeTests
     public void AllHudChangesRequireActionPermissionAndApproval()
     {
         var changes = typeof(HudProvider).GetMethods().Select(m => m.GetCustomAttributes(typeof(McpToolAttribute), false).Cast<McpToolAttribute>().SingleOrDefault()).Where(a => a is not null && !a.Name.StartsWith("get_", StringComparison.Ordinal));
-        Assert.Equal(6, changes.Count());
+        Assert.Equal(7, changes.Count());
         Assert.All(changes, a => { Assert.Equal(ToolPermission.Action, a!.Permission); Assert.True(a.RequiresApproval); });
     }
 

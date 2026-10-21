@@ -304,7 +304,7 @@ do not edit the block by hand.
 
 <!-- BEGIN GENERATED CATALOG: dotnet run --project tools/catalog -- readme --write README.md -->
 
-171 tools (47 change something and go through the approval switch; 26 also work before the game starts), 20 resources and templates, 10 prompts.
+172 tools (48 change something and go through the approval switch; 26 also work before the game starts), 20 resources and templates, 10 prompts.
 Catalogue version 2; the machine-readable listing is [docs/tools.json](docs/tools.json) and the full reference (arguments, data sources, approval text) is [docs/TOOLS.md](docs/TOOLS.md).
 Tier and category are the in-game switches; *Login* means the call fails at the title screen; *Approval* means the call waits for you in game
 while *Ask me before anything changes* is ticked; *Pre-game* means the standalone host serves it while the game is closed.
@@ -339,7 +339,7 @@ Behaviour in game is unverified unless stated elsewhere.
 | `get_bridge_state` | Read | bridges | no | — | — | Reads one bridge's read-only IPC gates and returns each as {field, description, value, error}: for Penumbra the enabled state, mod list and collections; for Glamourer the saved design list; for Lifestream/AutoRetainer… |
 | `get_desktop_panels` | Read | bridges | no | — | — | What the player currently sees in XivDesktop: the launcher (open, search text, view, category, page, selected and visible app ids), favourites in order, whether the palette is open and the assistant's state (summoned,… |
 | `get_desktop_status` | Read | bridges | no | — | — | XivDesktop's health: ghostty (launching is possible), ghosttyStatus, apps (catalogue size), scanning, scannedAt, lastLaunch, lastError, summary, plus apiVersion (null until XivDesktop offers an ApiVersion gate). |
-| `get_hud_family_status` | Read | bridges | no | — | — | Read all XivHud modules independently: installed/loaded versions, versioned IPC capabilities, native HUD requested/applied visibility, Journal selection/search/bookmarks, Character page, passive Vitals preview/lock/pa… |
+| `get_hud_family_status` | Read | bridges | no | — | — | Read all XivHud modules independently: installed/loaded versions, versioned IPC capabilities, native HUD requested/applied visibility, Journal selection/search/bookmarks and compact tracker preferences/visible quest I… |
 | `get_hud_module_status` | Read | bridges | no | — | — | Read one XivHud module's capabilities and immutable state snapshot, including window hosting, UI selection, controller focus and data errors. |
 | `get_hud_request` | Read | bridges | no | — | — | Poll a HUD module request by requestId. |
 | `get_terminal_capture_status` | Read | bridges | no | — | — | Whether GhosttyDalamud is recording, and its last screenshot or clip (kind, path, size, time, error). |
@@ -365,6 +365,7 @@ Behaviour in game is unverified unless stated elsewhere.
 | `capture_terminal_clip` | Action | bridges | yes | yes | — | Asks GhosttyDalamud to record a short clip (1-30 seconds, gif or mp4) of the game frame, or of the focused panel only, optionally with the game's own UI hidden. |
 | `capture_terminal_screenshot` | Action | bridges | yes | yes | — | Asks GhosttyDalamud for a PNG of the frame the game just drew, including its world panels: target full (the whole frame) or panel (just the focused terminal's window); clean=true hides the game's own UI for that frame. |
 | `close_terminal_panel` | Action | bridges | yes | yes | — | Closes a panel as its close button does (panel.close): a terminal's shell and every program in it END, a remote window's stream stops, an adopted plugin window goes back to its plugin and the chat back to the game. |
+| `configure_hud_tracker` | Action | bridges | no | yes | — | Configure the existing Journal's compact screen HUD: explicit enabled/locked states, tracked quests or local bookmarks, and one to five entries. |
 | `control_hud_window` | Action | bridges | no | yes | — | Explicit HUD UI operation: open, close, settings, original, or mode. hud supports settings/close only; Journal/Character support every operation; Vitals supports open/close/settings only and does not change native HUD… |
 | `desktop_command` | Action | bridges | no | yes | — | Acts on the host desktop through XivDesktop. method launch starts an application (argument: the app id or a search text); method window sends a window action (argument: JSON such as {"action":"focus","id":12} — action… |
 | `desktop_window_action` | Action | bridges | no | yes | — | One action on a desktop window panel: focus, close (closes the window's stream and panel), pet (make it a pet), pin (pin it where the character stands), toggle (pet ↔ pin in place), place (needs pin, as /term pin take… |

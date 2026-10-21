@@ -16,7 +16,7 @@ public sealed class HudProvider
 
     [McpTool("get_hud_family_status", RequiresLogin = false, Title = "Read the XivHud family",
         Sources = ["dalamud:InstalledPlugins", "ipc:XivHud.v1.Call", "ipc:XivHud.Journal.v1.Call", "ipc:XivHud.Character.v1.Call", "ipc:XivHud.Vitals.v1.Call"],
-        Description = "Read all XivHud modules independently: installed/loaded versions, versioned IPC capabilities, native HUD requested/applied visibility, Journal selection/search/bookmarks, Character page, passive Vitals preview/lock/panel diagnostics, data readiness, requested versus actual screen/native-frame/world hosting, focus and controller status. Missing or old modules return their own errors without hiding healthy modules. Windowing is a bundled shared library, not a separately installed plugin. Character and quest facts remain available through get_character_sheet/get_quest_journal. Reads neither open windows nor capture controller input; snapshots include observedAt.")]
+        Description = "Read all XivHud modules independently: installed/loaded versions, versioned IPC capabilities, native HUD requested/applied visibility, Journal selection/search/bookmarks and compact tracker preferences/visible quest IDs, Character page, passive Vitals preview/lock/panel diagnostics, data readiness, requested versus actual screen/native-frame/world hosting, focus and controller status. Missing or old modules return their own errors without hiding healthy modules. Windowing is a bundled shared library, not a separately installed plugin. Character and quest facts remain available through get_character_sheet/get_quest_journal. Reads neither open windows nor capture controller input; snapshots include observedAt.")]
     public FamilyResult Family() => new(HudBridge.Modules.Select(bridge.ReadModule).ToArray(),
         "HUD visibility is independent of module window hosting. Only a focused local window owns controller input. A queued/applied UI request is not proof that its host displayed a frame; inspect actualMode and hostingStatus. Vitals never captures controller input and supports screen panels only. Recovery: /xivhud off, /xivjournal screen, /xivcharacter screen, /xivvitals close.");
 
@@ -72,6 +72,21 @@ public sealed class HudProvider
         Description = "Set or remove a local XivHud Journal bookmark for an accepted quest. Does not modify native quest tracking. Returns a requestId for get_hud_request.",
         ApprovalSummary = "Set the local Journal bookmark for quest {questId} to {bookmarked}.")]
     public JsonElement Bookmark([McpParam("Accepted Quest sheet row ID.", Minimum = 1)] uint questId, [McpParam("Explicit desired bookmark state.")] bool bookmarked) => Quest("journal.bookmark", questId, bookmarked);
+
+    [McpTool("configure_hud_tracker", Permission = ToolPermission.Action, RequiresApproval = true, RequiresLogin = false,
+        Title = "Configure the Journal quest tracker", Sources = ["ipc:XivHud.Journal.v1.Call#journal.tracker"],
+        Description = "Configure the existing Journal's compact screen HUD: explicit enabled/locked states, tracked quests or local bookmarks, and one to five entries. Locked panels pass clicks through; unlocked title drags and quest rows open the book. Does not modify native quest tracking or native HUD visibility. Requires Journal's journal.tracker capability; older versions return an explicit unsupported-method error. Poll get_hud_request, then inspect tracker state and visibleQuestIds. Applied preferences do not prove a rendered frame.",
+        ApprovalSummary = "Set the Journal tracker enabled={enabled}, locked={locked}, filter={filter}, limit={limit}.")]
+    public JsonElement Tracker(
+        [McpParam("Whether to display the tracker when current quest data is available.")] bool enabled,
+        [McpParam("True passes game clicks through; false permits dragging and opening quest pages.")] bool locked = true,
+        [McpParam("Source of accepted quests; never edits native tracking.", Enum = ["tracked", "bookmarks"])] string filter = "tracked",
+        [McpParam("Maximum quest entries.", Minimum = 1, Maximum = 5)] int limit = 3)
+    {
+        if (filter is not ("tracked" or "bookmarks") || limit is < 1 or > 5) throw Invalid("Choose tracked or bookmarks and a limit from 1 to 5.");
+        return bridge.Change("journal", "journal.tracker", new JsonObject
+        { ["enabled"] = enabled, ["locked"] = locked, ["filter"] = filter, ["limit"] = limit });
+    }
 
     [McpTool("show_hud_quest_on_map", Permission = ToolPermission.Action, RequiresApproval = true,
         Title = "Show a Journal quest on the game map", Sources = ["ipc:XivHud.Journal.v1.Call#journal.show_map"],

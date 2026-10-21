@@ -1141,6 +1141,90 @@
       }
     },
     {
+      "name": "configure_hud_tracker",
+      "title": "Configure the Journal quest tracker",
+      "category": "bridges",
+      "permission": "action",
+      "availability": "live",
+      "requiresLogin": false,
+      "needsApproval": true,
+      "approvalSummary": "Set the Journal tracker enabled={enabled}, locked={locked}, filter={filter}, limit={limit}.",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "dataSources": [
+        "ipc:XivHud.Journal.v1.Call#journal.tracker"
+      ],
+      "description": "Configure the existing Journal's compact screen HUD: explicit enabled/locked states, tracked quests or local bookmarks, and one to five entries. Locked panels pass clicks through; unlocked title drags and quest rows open the book. Does not modify native quest tracking or native HUD visibility. Requires Journal's journal.tracker capability; older versions return an explicit unsupported-method error. Poll get_hud_request, then inspect tracker state and visibleQuestIds. Applied preferences do not prove a rendered frame.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "description": "Whether to display the tracker when current quest data is available.",
+            "type": "boolean"
+          },
+          "locked": {
+            "description": "True passes game clicks through; false permits dragging and opening quest pages.",
+            "type": "boolean",
+            "default": true
+          },
+          "filter": {
+            "description": "Source of accepted quests; never edits native tracking.",
+            "type": "string",
+            "enum": [
+              "tracked",
+              "bookmarks"
+            ],
+            "default": "tracked"
+          },
+          "limit": {
+            "description": "Maximum quest entries.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5,
+            "default": 3
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "description": "Any JSON value.",
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": true
+              },
+              {
+                "type": "array"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "result"
+        ]
+      }
+    },
+    {
       "name": "control_hud_window",
       "title": "Control a HUD family window",
       "category": "bridges",
@@ -6075,7 +6159,7 @@
         "ipc:XivHud.Character.v1.Call",
         "ipc:XivHud.Vitals.v1.Call"
       ],
-      "description": "Read all XivHud modules independently: installed/loaded versions, versioned IPC capabilities, native HUD requested/applied visibility, Journal selection/search/bookmarks, Character page, passive Vitals preview/lock/panel diagnostics, data readiness, requested versus actual screen/native-frame/world hosting, focus and controller status. Missing or old modules return their own errors without hiding healthy modules. Windowing is a bundled shared library, not a separately installed plugin. Character and quest facts remain available through get_character_sheet/get_quest_journal. Reads neither open windows nor capture controller input; snapshots include observedAt.",
+      "description": "Read all XivHud modules independently: installed/loaded versions, versioned IPC capabilities, native HUD requested/applied visibility, Journal selection/search/bookmarks and compact tracker preferences/visible quest IDs, Character page, passive Vitals preview/lock/panel diagnostics, data readiness, requested versus actual screen/native-frame/world hosting, focus and controller status. Missing or old modules return their own errors without hiding healthy modules. Windowing is a bundled shared library, not a separately installed plugin. Character and quest facts remain available through get_character_sheet/get_quest_journal. Reads neither open windows nor capture controller input; snapshots include observedAt.",
       "inputSchema": {
         "type": "object",
         "properties": {},

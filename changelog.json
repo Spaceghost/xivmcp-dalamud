@@ -10,11 +10,15 @@
       "blurb": "HUD family discovery and module snapshots have live smoke evidence. UI mutations remain unverified; the resource login fix is host-tested.",
       "items": [
         {
-          "status": "next",
+          "status": "beta",
+          "text": "The existing illustrated Journal gains a compact quest tracker. configure_hud_tracker explicitly controls enabled/locked states, tracked quests or local bookmarks and one to five entries; capability discovery protects older Journal versions. Family snapshots expose tracker preferences and recently drawn quest IDs. No native quest tracking or HUD visibility is changed. Provider/capability/permission tests pass; live rendering acceptance is pending."
+        },
+        {
+          "status": "beta",
           "text": "Automatic plugin setup replaces manual installer handoffs: plan a repository and named plugins, register/enable its source and testing preferences, install/update declared same-repository dependencies, enable the plugins and verify loaded versions. setup_plugins returns a bounded progress operation with honest partial failure state; plan/status reads never mutate. add_plugin_repository now performs registration directly. Uses the existing owner-controlled Action/approval gate. Dev/duplicate installs, foreign sources, collection conflicts, bans, API mismatches and running MCP self replacement are preserved/refused. Host tests include the current Dalamud reference bindings; in-game installation acceptance is pending."
         },
         {
-          "status": "next",
+          "status": "beta",
           "text": "HUD discovery in development includes the new manual-only XivHud.Vitals module: readiness, sample-preview, panel-lock and screen-panel diagnostics without actor identities or combat values. Existing approved HUD controls support its explicit open/close/settings operations; original and world/native mode are rejected before IPC. Generated bridge and tool schemas include Vitals. Offline provider/resource/schema tests pass; no new in-game acceptance."
         },
         {
@@ -95,7 +99,7 @@
         },
         {
           "status": "beta",
-          "text": "Forty new tools in a \"bridges\" category let an assistant see and drive the owner's other mods. Ghostty: list the terminal panels, read a panel's layout and status, open a terminal (the approval prompt shows the command verbatim), place, focus, close, hide or reorder a panel, take a screenshot or a clip, set the theme and run the selftest. XivDesktop: list applications and windows, search the palette, read status, launch an application, act on a window, switch workspace and ask the NPC assistant. Almanac: read its status and ask it something. Everything that changes anything goes through the same approval checkbox. Some of these tools are written against IPC the other mods do not offer yet; those answer with a clear \"unavailable\" that names exactly what is missing, and start working when the sibling ships it \u2014 nothing in XivMcp has to change."
+          "text": "Forty new tools in a \"bridges\" category let an assistant see and drive the owner's other mods. Ghostty: list the terminal panels, read a panel's layout and status, open a terminal (the approval prompt shows the command verbatim), place, focus, close, hide or reorder a panel, take a screenshot or a clip, set the theme and run the selftest. XivDesktop: list applications and windows, search the palette, read status, launch an application, act on a window, switch workspace and ask the NPC assistant. Almanac: read its status and ask it something. Everything that changes anything goes through the same approval checkbox. Some of these tools are written against IPC the other mods do not offer yet; those answer with a clear \"unavailable\" that names exactly what is missing, and start working when the sibling ships it — nothing in XivMcp has to change."
         },
         {
           "status": "beta",
@@ -111,11 +115,11 @@
       "items": [
         {
           "status": "beta",
-          "text": "One checkbox now decides whether you are asked: Settings opens with \"Ask me before anything changes\". Ticked (the default), every tool that changes something \u2014 targets, gearsets, teleport, slash commands, chat, the map flag, terminal and desktop panels \u2014 waits for Allow / Deny or a ticket, and the prompt says in one sentence what will happen, with chat text shown verbatim. Unticked, those tools run at once. Allow sessions, 10-minute grants and auto-approve rules are shortcuts under that switch."
+          "text": "One checkbox now decides whether you are asked: Settings opens with \"Ask me before anything changes\". Ticked (the default), every tool that changes something — targets, gearsets, teleport, slash commands, chat, the map flag, terminal and desktop panels — waits for Allow / Deny or a ticket, and the prompt says in one sentence what will happen, with chat text shown verbatim. Unticked, those tools run at once. Allow sessions, 10-minute grants and auto-approve rules are shortcuts under that switch."
         },
         {
           "status": "beta",
-          "text": "An action log records every state-changing call that ran \u2014 what, which client and token, when, and whether you were being asked \u2014 in the Approvals tab and in actions.log. With approval off, a call that sent chat or changed gear still shows a notification."
+          "text": "An action log records every state-changing call that ran — what, which client and token, when, and whether you were being asked — in the Approvals tab and in actions.log. With approval off, a call that sent chat or changed gear still shows a notification."
         },
         {
           "status": "beta",
@@ -123,7 +127,7 @@
         },
         {
           "status": "beta",
-          "text": "Every tool now declares where its answer comes from, whether it works before the game starts and whether it goes through approval, and errors carry a stable code (not_found, rate_limited, game_not_running, denied\u2026). Clients are rate-limited per token (600 calls a minute by default). The whole catalogue is published as docs/tools.json, and the README table and docs/TOOLS.md are generated from it and checked in CI."
+          "text": "Every tool now declares where its answer comes from, whether it works before the game starts and whether it goes through approval, and errors carry a stable code (not_found, rate_limited, game_not_running, denied…). Clients are rate-limited per token (600 calls a minute by default). The whole catalogue is published as docs/tools.json, and the README table and docs/TOOLS.md are generated from it and checked in CI."
         },
         {
           "status": "beta",
@@ -139,7 +143,7 @@
         },
         {
           "status": "beta",
-          "text": "Settings leads with what you actually change \u2014 the server switch and port, the four permission tiers and in-game confirmation \u2014 and folds categories and advanced options away. Turning the server on or off takes effect at once; a port or host change restarts the listener cleanly. An unreadable settings file is kept aside and your token and readable values recovered rather than lost."
+          "text": "Settings leads with what you actually change — the server switch and port, the four permission tiers and in-game confirmation — and folds categories and advanced options away. Turning the server on or off takes effect at once; a port or host change restarts the listener cleanly. An unreadable settings file is kept aside and your token and readable values recovered rather than lost."
         },
         {
           "status": "beta",
@@ -151,7 +155,7 @@
         },
         {
           "status": "beta",
-          "text": "Ask a local model without leaving the game: a Local model block in Settings with Detect (it probes the common local servers) and Test (it lists the model and times a one-line completion), and a switch that lets other plugins \u2014 Almanac, Ghostty \u2014 connect themselves and be handed their own token. XivMcp does not run the model, and the API key is never handed to another plugin."
+          "text": "Ask a local model without leaving the game: a Local model block in Settings with Detect (it probes the common local servers) and Test (it lists the model and times a one-line completion), and a switch that lets other plugins — Almanac, Ghostty — connect themselves and be handed their own token. XivMcp does not run the model, and the API key is never handed to another plugin."
         },
         {
           "status": "beta",
@@ -163,7 +167,7 @@
         },
         {
           "status": "beta",
-          "text": "Custom objectives: post your own goals with conditions the game understands \u2014 an Eorzea time window, a zone's weather, a place and a radius \u2014 and XivMcp tracks them, places the map flag, shows the game's quest toast when one starts or completes, and lists them under the Duty List in the game's own font. It only reads the addon; nothing is injected into it. /xivmcp quests works from chat, and objective packs can be loaded from a file."
+          "text": "Custom objectives: post your own goals with conditions the game understands — an Eorzea time window, a zone's weather, a place and a radius — and XivMcp tracks them, places the map flag, shows the game's quest toast when one starts or completes, and lists them under the Duty List in the game's own font. It only reads the addon; nothing is injected into it. /xivmcp quests works from chat, and objective packs can be loaded from a file."
         },
         {
           "status": "beta",
@@ -179,7 +183,7 @@
         },
         {
           "status": "beta",
-          "text": "The build itself now refuses a reload leak: the .NET analyzers run with warnings as errors and the disposal rules pinned on, which found and fixed several real leaks in the plugin's own teardown. Nightly fuzzing of the HTTP request handling found two bodies answered with a 500 \u2014 invalid UTF-8 and a duplicated JSON key \u2014 which are parse errors (400) now."
+          "text": "The build itself now refuses a reload leak: the .NET analyzers run with warnings as errors and the disposal rules pinned on, which found and fixed several real leaks in the plugin's own teardown. Nightly fuzzing of the HTTP request handling found two bodies answered with a 500 — invalid UTF-8 and a duplicated JSON key — which are parse errors (400) now."
         },
         {
           "status": "beta",
